@@ -1,6 +1,6 @@
 # Wakacoin
 A fully decentralized blockchain.  
-The open source code will be released on September 27, 2020.  
+The open source code was released on September 27, 2020.  
   
 Wakacoin blockchain consensus:  
 1. Use Proof-of-Work (PoW).  
