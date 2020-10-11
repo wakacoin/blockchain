@@ -3,7 +3,7 @@ A fully decentralized blockchain.
 The open source code was released on September 27, 2020.  
   
 Wakacoin blockchain consensus:  
-1. Use Proof-of-Work (PoW).  
+1. It uses Proof-of-Work (PoW).  
 2. The maximum capacity of each block is 5 MB, containing up to 5,000 transactions.  
 3. A block is generated every 10 minutes on average.  
 4. Incentives: coinbase and transaction fees.  
