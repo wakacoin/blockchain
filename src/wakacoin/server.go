@@ -1442,7 +1442,7 @@ func wrappedTXs(bc *Blockchain) []*Transaction {
 			} else {
 				if quota >= txSize {
 					quota -= txSize
-					txs = append(txs, tnx)	
+					txs = append(txs, tnx)
 				}
 			}
 			

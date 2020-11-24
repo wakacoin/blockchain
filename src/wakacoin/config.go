@@ -20,7 +20,7 @@ const(
 	walletFile = "wallet_%s.dat"
 	
 	blockVersion uint32 = 0
-	maxBlockSize uint32 = 5*1024*1024
+	maxBlockSize uint32 = 5242880   //5 MB
 	stretch float32 = 1.01
 	maxBlockHeaderPayload uint8 = 85
 	coinbaseReservedSize uint16 = 700
@@ -34,9 +34,11 @@ const(
 	
 	difficultyDefault_0 uint8 = 20
 	difficultyDefault_1 uint8 = 20
-	averageBlockTimeOfBlocks uint8 = 255
 	averageBlockTime uint16 = 600
+	averageBlockTimeOfBlocks uint8 = 255
+	averageBlockTimeOfBlocks_2 uint8 = 60
 	errorTolerance uint16 = 300
+	errorTolerance_2 uint16 = 60
 	
 	transactionVersion uint32 = 0
 	spendableOutputConfirmations uint8 = 255
@@ -53,14 +55,14 @@ const(
 	protocol = "tcp"
 	CommandLength uint8 = 14
 	hubsCounter uint8 = 180
-	hubsMax uint8 = 3
-	knownNodesMax uint8 = 6
-	knownNodesPacketMax uint8 = 2
+	hubsMax uint8 = 255
+	knownNodesMax uint8 = 255
+	knownNodesPacketMax uint8 = 5
 	txidsPacketMax uint8 = 3
 	
 	protectFromGenesis = "000004c8660c7e4bc9afcc6c0c51ad506ebda759d80fd9d0bd7a9538805b0da2"
-	protectTo = "0000025753fb9696efa410c33bf1a44bc0d8732634e5a7c98c1220875d435be9"
-	protectHeight uint32 = 23324
+	protectTo = "00000004987edd995ff07dc487428d4026e229463a8b21354fe627c851b2fb12"
+	protectHeight uint32 = 32100
 )
 
 var (
