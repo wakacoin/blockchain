@@ -39,6 +39,7 @@ const(
 	averageBlockTimeOfBlocks_2 uint8 = 60
 	errorTolerance uint16 = 300
 	errorTolerance_2 uint16 = 60
+	errorTolerance_3 uint16 = 10
 	
 	transactionVersion uint32 = 0
 	spendableOutputConfirmations uint8 = 255
