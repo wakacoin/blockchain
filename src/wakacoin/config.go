@@ -35,11 +35,14 @@ const(
 	difficultyDefault_0 uint8 = 20
 	difficultyDefault_1 uint8 = 20
 	averageBlockTime uint16 = 600
-	averageBlockTimeOfBlocks uint8 = 255
-	averageBlockTimeOfBlocks_2 uint8 = 60
-	errorTolerance uint16 = 300
-	errorTolerance_2 uint16 = 60
-	errorTolerance_3 uint16 = 10
+	averageBlockTimeBlocks uint8 = 255
+	averageBlockTimeBlocks_2 uint8 = 60
+	averageBlockTimeBlocks_3 uint8 = 15
+	tolerance uint16 = 300
+	tolerance_2 uint16 = 60
+	tolerance_3 uint16 = 10
+	toleranceUpperLimit uint16 = 10
+	toleranceLowerLimit uint16 = 200
 	
 	transactionVersion uint32 = 0
 	spendableOutputConfirmations uint8 = 255
@@ -62,8 +65,8 @@ const(
 	txidsPacketMax uint8 = 3
 	
 	protectFromGenesis = "000004c8660c7e4bc9afcc6c0c51ad506ebda759d80fd9d0bd7a9538805b0da2"
-	protectTo = "00000004987edd995ff07dc487428d4026e229463a8b21354fe627c851b2fb12"
-	protectHeight uint32 = 32100
+	protectTo = "0000007b6f43a34955517b398a139151b4fae159676a3de07319813bbf40589f"
+	protectHeight uint32 = 33228
 )
 
 var (

@@ -300,7 +300,7 @@ func (bc *Blockchain) SetDifficulty(height uint32, prevBlock [32]byte) uint8 {
 	case height < 32300:
 		var timestamp [2]int64
 		var currentDifficulty uint8
-		x := int(averageBlockTimeOfBlocks)
+		x := int(averageBlockTimeBlocks)
 		
 		bci := &BlockchainIterator{prevBlock, bc.db}
 		
@@ -339,16 +339,16 @@ func (bc *Blockchain) SetDifficulty(height uint32, prevBlock [32]byte) uint8 {
 		}
 		
 		interval := timestamp[0] - timestamp[1]
-		average := interval / int64(averageBlockTimeOfBlocks)
+		average := interval / int64(averageBlockTimeBlocks)
 		
 		difficulty := currentDifficulty
 		
-		if average > int64(averageBlockTime + errorTolerance) {
+		if average > int64(averageBlockTime + tolerance) {
 			if difficulty > difficultyDefault_1 {
 				difficulty--
 			}
 			
-		} else if average < int64(averageBlockTime - errorTolerance) {
+		} else if average < int64(averageBlockTime - tolerance) {
 			difficulty++
 		}
 		
@@ -357,7 +357,7 @@ func (bc *Blockchain) SetDifficulty(height uint32, prevBlock [32]byte) uint8 {
 	case height < 32600:
 		var timestamp [2]int64
 		var currentDifficulty uint8
-		x := int(averageBlockTimeOfBlocks_2)
+		x := int(averageBlockTimeBlocks_2)
 		
 		bci := &BlockchainIterator{prevBlock, bc.db}
 		
@@ -396,25 +396,25 @@ func (bc *Blockchain) SetDifficulty(height uint32, prevBlock [32]byte) uint8 {
 		}
 		
 		interval := timestamp[0] - timestamp[1]
-		average := interval / int64(averageBlockTimeOfBlocks_2)
+		average := interval / int64(averageBlockTimeBlocks_2)
 		
 		difficulty := currentDifficulty
 		
-		if average > int64(averageBlockTime + errorTolerance_2) {
+		if average > int64(averageBlockTime + tolerance_2) {
 			if difficulty > difficultyDefault_1 {
 				difficulty--
 			}
 			
-		} else if average < int64(averageBlockTime - errorTolerance_2) {
+		} else if average < int64(averageBlockTime - tolerance_2) {
 			difficulty++
 		}
 		
 		return difficulty
 		
-	default:
+	case height < 33400:
 		var timestamp [2]int64
 		var currentDifficulty uint8
-		x := int(averageBlockTimeOfBlocks_2)
+		x := int(averageBlockTimeBlocks_2)
 		
 		bci := &BlockchainIterator{prevBlock, bc.db}
 		
@@ -453,17 +453,81 @@ func (bc *Blockchain) SetDifficulty(height uint32, prevBlock [32]byte) uint8 {
 		}
 		
 		interval := timestamp[0] - timestamp[1]
-		average := interval / int64(averageBlockTimeOfBlocks_2)
+		average := interval / int64(averageBlockTimeBlocks_2)
 		
 		difficulty := currentDifficulty
 		
-		if average > int64(averageBlockTime + errorTolerance_3) {
+		if average > int64(averageBlockTime + tolerance_3) {
 			if difficulty > difficultyDefault_1 {
 				difficulty--
 			}
 			
-		} else if average < int64(averageBlockTime - errorTolerance_3) {
+		} else if average < int64(averageBlockTime - tolerance_3) {
 			difficulty++
+		}
+		
+		return difficulty
+	
+	default:
+		var timestamp [2]int64
+		var currentDifficulty [5]uint8
+		x := int(averageBlockTimeBlocks_3)
+		
+		bci := &BlockchainIterator{prevBlock, bc.db}
+		
+		for i := 0; i <= x; i++ {
+			block := bci.Next()
+			
+			if i == 0 || i == 1 || i == 2 || i == 3 || i == 4 {
+				currentDifficulty[i] = block.Header.Difficulty
+			}
+			
+			if i == 0 {
+				timestamp[0] = block.Header.Timestamp
+				
+				if timestamp[0] < time.Now().UTC().Add(-3 * time.Hour).Unix() {
+					timeout := time.Now().UTC().Unix() - timestamp[0]
+					var threshold int64 = 10800   //3 hours
+					round := timeout / threshold
+					weight := round * round
+					
+					if currentDifficulty[0] > uint8(weight) {
+						if currentDifficulty[0] - uint8(weight) > difficultyDefault_1 {
+							difficulty := currentDifficulty[0] - uint8(weight)
+							
+							return difficulty
+							
+						} else {
+							return difficultyDefault_1
+						}
+						
+					} else {
+						return difficultyDefault_1
+					}
+				}
+			}
+			
+			if i == x {
+				timestamp[1] = block.Header.Timestamp
+			}
+		}
+		
+		interval := timestamp[0] - timestamp[1]
+		average := interval / int64(averageBlockTimeBlocks_3)
+		
+		difficulty := currentDifficulty[0]
+		
+		if average > int64(averageBlockTime + toleranceUpperLimit) {
+			if currentDifficulty[0] == currentDifficulty[1] && currentDifficulty[0] == currentDifficulty[2] && currentDifficulty[0] == currentDifficulty[3] && currentDifficulty[0] == currentDifficulty[4] {
+				if difficulty > difficultyDefault_1 {
+					difficulty--
+				}
+			}
+			
+		} else if average < int64(averageBlockTime - toleranceLowerLimit) {
+			if currentDifficulty[0] == currentDifficulty[1] && currentDifficulty[0] == currentDifficulty[2] && currentDifficulty[0] == currentDifficulty[3] && currentDifficulty[0] == currentDifficulty[4] {
+				difficulty++
+			}
 		}
 		
 		return difficulty
@@ -480,7 +544,7 @@ func (bc *Blockchain) GetValidDifficulty(block *Block) uint8 {
 	case height < 32300:
 		var timestamp [3]int64
 		var referenceDifficulty uint8
-		x := int(averageBlockTimeOfBlocks)
+		x := int(averageBlockTimeBlocks)
 		timestamp[0] = block.Header.Timestamp
 		
 		bci := &BlockchainIterator{block.Header.PrevBlock, bc.db}
@@ -521,16 +585,16 @@ func (bc *Blockchain) GetValidDifficulty(block *Block) uint8 {
 		}
 		
 		interval = timestamp[1] - timestamp[2]
-		average := interval / int64(averageBlockTimeOfBlocks)
+		average := interval / int64(averageBlockTimeBlocks)
 		
 		difficulty := referenceDifficulty
 		
-		if average > int64(averageBlockTime + errorTolerance) {
+		if average > int64(averageBlockTime + tolerance) {
 			if difficulty > difficultyDefault_1 {
 				difficulty--
 			}
 			
-		} else if average < int64(averageBlockTime - errorTolerance) {
+		} else if average < int64(averageBlockTime - tolerance) {
 			difficulty++
 		}
 		
@@ -539,7 +603,7 @@ func (bc *Blockchain) GetValidDifficulty(block *Block) uint8 {
 	case height < 32600:
 		var timestamp [3]int64
 		var referenceDifficulty uint8
-		x := int(averageBlockTimeOfBlocks_2)
+		x := int(averageBlockTimeBlocks_2)
 		timestamp[0] = block.Header.Timestamp
 		
 		bci := &BlockchainIterator{block.Header.PrevBlock, bc.db}
@@ -580,16 +644,75 @@ func (bc *Blockchain) GetValidDifficulty(block *Block) uint8 {
 		}
 		
 		interval = timestamp[1] - timestamp[2]
-		average := interval / int64(averageBlockTimeOfBlocks_2)
+		average := interval / int64(averageBlockTimeBlocks_2)
 		
 		difficulty := referenceDifficulty
 		
-		if average > int64(averageBlockTime + errorTolerance_2) {
+		if average > int64(averageBlockTime + tolerance_2) {
 			if difficulty > difficultyDefault_1 {
 				difficulty--
 			}
 			
-		} else if average < int64(averageBlockTime - errorTolerance_2) {
+		} else if average < int64(averageBlockTime - tolerance_2) {
+			difficulty++
+		}
+		
+		return difficulty
+	
+	case height < 33400:
+		var timestamp [3]int64
+		var referenceDifficulty uint8
+		x := int(averageBlockTimeBlocks_2)
+		timestamp[0] = block.Header.Timestamp
+		
+		bci := &BlockchainIterator{block.Header.PrevBlock, bc.db}
+		
+		for i := 0; i <= x; i++ {
+			b := bci.Next()
+			
+			if i == 0 {
+				timestamp[1] = b.Header.Timestamp
+				referenceDifficulty = b.Header.Difficulty
+			}
+			
+			if i == x {
+				timestamp[2] = b.Header.Timestamp
+			}
+		}
+		
+		interval := timestamp[0] - timestamp[1]
+		var threshold int64 = 10800   //3 hours
+		
+		if interval > threshold {
+			round := interval / threshold
+			weight := round * round
+			
+			if int64(referenceDifficulty) > weight {
+				if referenceDifficulty - uint8(weight) > difficultyDefault_1 {
+					difficulty := referenceDifficulty - uint8(weight)
+					
+					return difficulty
+					
+				} else {
+					return difficultyDefault_1
+				}
+				
+			} else {
+				return difficultyDefault_1
+			}
+		}
+		
+		interval = timestamp[1] - timestamp[2]
+		average := interval / int64(averageBlockTimeBlocks_2)
+		
+		difficulty := referenceDifficulty
+		
+		if average > int64(averageBlockTime + tolerance_3) {
+			if difficulty > difficultyDefault_1 {
+				difficulty--
+			}
+			
+		} else if average < int64(averageBlockTime - tolerance_3) {
 			difficulty++
 		}
 		
@@ -597,8 +720,8 @@ func (bc *Blockchain) GetValidDifficulty(block *Block) uint8 {
 	
 	default:
 		var timestamp [3]int64
-		var referenceDifficulty uint8
-		x := int(averageBlockTimeOfBlocks_2)
+		var referenceDifficulty [5]uint8
+		x := int(averageBlockTimeBlocks_3)
 		timestamp[0] = block.Header.Timestamp
 		
 		bci := &BlockchainIterator{block.Header.PrevBlock, bc.db}
@@ -606,9 +729,12 @@ func (bc *Blockchain) GetValidDifficulty(block *Block) uint8 {
 		for i := 0; i <= x; i++ {
 			b := bci.Next()
 			
+			if i == 0 || i == 1 || i == 2 || i == 3 || i == 4 {
+				referenceDifficulty[i] = b.Header.Difficulty
+			}
+			
 			if i == 0 {
 				timestamp[1] = b.Header.Timestamp
-				referenceDifficulty = b.Header.Difficulty
 			}
 			
 			if i == x {
@@ -623,9 +749,9 @@ func (bc *Blockchain) GetValidDifficulty(block *Block) uint8 {
 			round := interval / threshold
 			weight := round * round
 			
-			if int64(referenceDifficulty) > weight {
-				if referenceDifficulty - uint8(weight) > difficultyDefault_1 {
-					difficulty := referenceDifficulty - uint8(weight)
+			if referenceDifficulty[0] > uint8(weight) {
+				if referenceDifficulty[0] - uint8(weight) > difficultyDefault_1 {
+					difficulty := referenceDifficulty[0] - uint8(weight)
 					
 					return difficulty
 					
@@ -639,17 +765,21 @@ func (bc *Blockchain) GetValidDifficulty(block *Block) uint8 {
 		}
 		
 		interval = timestamp[1] - timestamp[2]
-		average := interval / int64(averageBlockTimeOfBlocks_2)
+		average := interval / int64(averageBlockTimeBlocks_3)
 		
-		difficulty := referenceDifficulty
+		difficulty := referenceDifficulty[0]
 		
-		if average > int64(averageBlockTime + errorTolerance_3) {
-			if difficulty > difficultyDefault_1 {
-				difficulty--
+		if average > int64(averageBlockTime + toleranceUpperLimit) {
+			if referenceDifficulty[0] == referenceDifficulty[1] && referenceDifficulty[0] == referenceDifficulty[2] && referenceDifficulty[0] == referenceDifficulty[3] && referenceDifficulty[0] == referenceDifficulty[4] {
+				if difficulty > difficultyDefault_1 {
+					difficulty--
+				}
 			}
 			
-		} else if average < int64(averageBlockTime - errorTolerance_3) {
-			difficulty++
+		} else if average < int64(averageBlockTime - toleranceLowerLimit) {
+			if referenceDifficulty[0] == referenceDifficulty[1] && referenceDifficulty[0] == referenceDifficulty[2] && referenceDifficulty[0] == referenceDifficulty[3] && referenceDifficulty[0] == referenceDifficulty[4] {
+				difficulty++
+			}
 		}
 		
 		return difficulty
