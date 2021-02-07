@@ -247,31 +247,56 @@ func StartServer(nodeID, minerAddress, from, to string, sendNewTx bool, amount u
 	
 	time.Sleep(15 * time.Second)
 	
-	for k, _ := range knownNodes {
+	nodesPacket := []string{}
+	nodesPacketMax := 8
+	knownNodesLength := len(knownNodes)
+	
+	if knownNodesLength < nodesPacketMax + 1 {
+		for node, _ := range knownNodes {
+			nodesPacket = append(nodesPacket, node)
+		}
+		
+	} else {
+		randomNumbers := generateRandomNumber(0, knownNodesLength - 1, nodesPacketMax)
+		
+		index := 0
+		
+		for node, _ := range knownNodes {
+			for _, num := range randomNumbers {
+				if index == num {
+					nodesPacket = append(nodesPacket, node)
+				}
+			}
+			
+			index ++
+		}
+	}
+	
+	for _, node := range nodesPacket {
 		send := true
 		
 		switch {
-		case k == nodeAddress:
+		case node == nodeAddress:
 			send = false
 			
-		case k == DefaultHub:
+		case node == DefaultHub:
 			if DefaultHubIsIP == false {
 				send = false
 			}
 			
-		case SetLocalhostDomainName && k == hostDomainName:
+		case SetLocalhostDomainName && node == hostDomainName:
 			send = false
 			
-		case SetLocalhostStaticIPAddr && k == hostStaticAddress:
+		case SetLocalhostStaticIPAddr && node == hostStaticAddress:
 			send = false
 		}
 		
 		if send {
 			if localhostisDefaultHub {
-				sendBestHeight(k, bc, false)
+				sendBestHeight(node, bc, false)
 				
 			} else {
-				sendGetBestHeight(k, bc.db, false)
+				sendGetBestHeight(node, bc.db, false)
 			}
 		}
 	}
@@ -946,27 +971,52 @@ func handleTx(remoteAddrHost string, request []byte, bc *Blockchain) {
 			})
 			CheckErr(err)
 			
-			for k, _ := range knownNodes {
+			nodesPacket := []string{}
+			nodesPacketMax := 5
+			knownNodesLength := len(knownNodes)
+			
+			if knownNodesLength < nodesPacketMax + 1 {
+				for node, _ := range knownNodes {
+					nodesPacket = append(nodesPacket, node)
+				}
+				
+			} else {
+				randomNumbers := generateRandomNumber(0, knownNodesLength - 1, nodesPacketMax)
+				
+				index := 0
+				
+				for node, _ := range knownNodes {
+					for _, num := range randomNumbers {
+						if index == num {
+							nodesPacket = append(nodesPacket, node)
+						}
+					}
+					
+					index ++
+				}
+			}
+			
+			for _, node := range nodesPacket {
 				send := true
 				
 				switch {
-				case k == nodeAddress:
+				case node == nodeAddress:
 					send = false
 					
-				case k == DefaultHub:
+				case node == DefaultHub:
 					if DefaultHubIsIP == false {
 						send = false
 					}
 					
-				case SetLocalhostDomainName && k == hostDomainName:
+				case SetLocalhostDomainName && node == hostDomainName:
 					send = false
 					
-				case SetLocalhostStaticIPAddr && k == hostStaticAddress:
+				case SetLocalhostStaticIPAddr && node == hostStaticAddress:
 					send = false
 				}
 				
 				if send {
-					sendTxids(k, txidsPacket, bc.db, false)
+					sendTxids(node, txidsPacket, bc.db, false)
 				}
 			}
 		}
@@ -1195,97 +1245,94 @@ func manageKnownNodes(nodeExists bool, addr string) {
 		err = ValidateAddrHost(addrHost)
 		CheckErr(err)
 		
-		if len(knownNodes) < int(knownNodesMax) {
-			knownNodes[addr] = 1
-			
-		} else {
-			delete(knownNodes, nodeAddress)
-			delete(knownNodes, DefaultHub)
-			
-			if SetLocalhostDomainName {
-				delete(knownNodes, hostDomainName)
-			}
-			
-			if SetLocalhostStaticIPAddr {
-				delete(knownNodes, hostStaticAddress)
-			}
-			
-			if len(knownNodes) < int(knownNodesMax) {
-				ifPutNode := true
-				
-				switch {
-				case addr == nodeAddress:
-					ifPutNode = false
-					
-				case addr == DefaultHub:
-					ifPutNode = false
-					
-				case SetLocalhostDomainName && addr == hostDomainName:
-					ifPutNode = false
-					
-				case SetLocalhostStaticIPAddr && addr == hostStaticAddress:
-					ifPutNode = false
-				}
-				
-				if ifPutNode {
-					knownNodes[addr] = 1
-				}
-				
-			}
-		}
+		knownNodes[addr] = 1
 	}
 }
 
 func SendTXIDs(db *bolt.DB) {
-	var txidsPacket [][32]byte
+	var tmp, txidsPacket [][32]byte
 	
 	err := db.View(func(tx *bolt.Tx) error {
 		txs := tx.Bucket([]byte(txsBucket))
 		c := txs.Cursor()
 		
-		txidsPacketMaxInt := int(txidsPacketMax)
-		
 		for k, _ := c.First(); k != nil; k, _ = c.Next() {
 			var array [32]byte
 			copy(array[:], k)
 			
-			if len(txidsPacket) < txidsPacketMaxInt {
-				txidsPacket = append(txidsPacket, array)
-				
-			} else {
-				break
-			}
+			tmp = append(tmp, array)
 		}
 		
 		return nil
 	})
 	CheckErr(err)
 	
+	tmpLength := len(tmp)
+	txidsPacketMaxInt := int(txidsPacketMax)
+	
+	if tmpLength < txidsPacketMaxInt + 1 {
+		for _, v := range tmp {
+			txidsPacket = append(txidsPacket, v)
+		}
+		
+	} else {
+		randomNumbers := generateRandomNumber(0, tmpLength - 1, txidsPacketMaxInt)
+		
+		for _, num := range randomNumbers {
+			txidsPacket = append(txidsPacket, tmp[num])
+		}
+	}
+	
 	if len(txidsPacket) > 0 {
-		for k, _ := range knownNodes {
-			str := "knownNode: " + k
+		nodesPacket := []string{}
+		nodesPacketMax := 5
+		knownNodesLength := len(knownNodes)
+		
+		if knownNodesLength < nodesPacketMax + 1 {
+			for node, _ := range knownNodes {
+				nodesPacket = append(nodesPacket, node)
+			}
+			
+		} else {
+			randomNumbers := generateRandomNumber(0, knownNodesLength - 1, nodesPacketMax)
+			
+			index := 0
+			
+			for node, _ := range knownNodes {
+				for _, num := range randomNumbers {
+					if index == num {
+						nodesPacket = append(nodesPacket, node)
+					}
+				}
+				
+				index ++
+			}
+		}
+		
+		for _, node := range nodesPacket {
+			str := "knownNode: " + node
 			PrintMessage(str)
 			
 			send := true
 			
 			switch {
-			case k == nodeAddress:
+			case node == nodeAddress:
 				send = false
 				
-			case k == DefaultHub:
+			case node == DefaultHub:
 				if DefaultHubIsIP == false {
 					send = false
 				}
 				
-			case SetLocalhostDomainName && k == hostDomainName:
+			case SetLocalhostDomainName && node == hostDomainName:
 				send = false
 				
-			case SetLocalhostStaticIPAddr && k == hostStaticAddress:
+			case SetLocalhostStaticIPAddr && node == hostStaticAddress:
 				send = false
 			}
 			
 			if send {
-				sendTxids(k, txidsPacket, db, true)
+				sendTxids(node, txidsPacket, db, true)
 			}
 		}
 	}
@@ -1350,28 +1397,53 @@ func StartMine(bc *Blockchain, batch uint32, maxNonce uint64, sleep uint8) {
 		}
 	}
 	
-	for k, _ := range knownNodes {
-		str := "knownNode: " + k
+	nodesPacket := []string{}
+	nodesPacketMax := 8
+	knownNodesLength := len(knownNodes)
+	
+	if knownNodesLength < nodesPacketMax + 1 {
+		for node, _ := range knownNodes {
+			nodesPacket = append(nodesPacket, node)
+		}
+		
+	} else {
+		randomNumbers := generateRandomNumber(0, knownNodesLength - 1, nodesPacketMax)
+		
+		index := 0
+		
+		for node, _ := range knownNodes {
+			for _, num := range randomNumbers {
+				if index == num {
+					nodesPacket = append(nodesPacket, node)
+				}
+			}
+			
+			index ++
+		}
+	}
+	
+	for _, node := range nodesPacket {
+		str := "knownNode: " + node
 		PrintMessage(str)
 		
 		send := true
 		
 		switch {
-		case k == nodeAddress:
+		case node == nodeAddress:
 			send = false
 			
-		case k == DefaultHub && DefaultHubIsIP == false:
+		case node == DefaultHub && DefaultHubIsIP == false:
 			send = false
 			
-		case SetLocalhostDomainName && k == hostDomainName:
+		case SetLocalhostDomainName && node == hostDomainName:
 			send = false
 			
-		case SetLocalhostStaticIPAddr && k == hostStaticAddress:
+		case SetLocalhostStaticIPAddr && node == hostStaticAddress:
 			send = false
 		}
 		
 		if send {
-			sendBestHeight(k, bc, true)
+			sendBestHeight(node, bc, true)
 		}
 	}
 	

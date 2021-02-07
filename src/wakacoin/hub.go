@@ -329,15 +329,31 @@ func handleGetKnownNodes(remoteAddrHost string, request []byte, db *bolt.DB) {
 	}
 	
 	nodesPacket := []string{}
+	nodesPacketMax := 10
+	knownNodesLength := len(knownNodes)
 	
-	for node, _ := range knownNodes {
-		if node != remoteAddr {
-			if len(nodesPacket) < int(knownNodesPacketMax) {
+	if knownNodesLength < nodesPacketMax + 3 {
+		for node, _ := range knownNodes {
+			if node != remoteAddr {
 				nodesPacket = append(nodesPacket, node)
-				
-			} else {
-				break
 			}
+		}
+		
+	} else {
+		randomNumbers := generateRandomNumber(0, knownNodesLength - 1, nodesPacketMax)
+		
+		index := 0
+		
+		for node, _ := range knownNodes {
+			for _, num := range randomNumbers {
+				if index == num {
+					if node != remoteAddr {
+						nodesPacket = append(nodesPacket, node)
+					}
+				}
+			}
+			
+			index ++
 		}
 	}
 	
@@ -366,18 +382,9 @@ func handleKnownNodesPacket(remoteAddrHost string, request []byte) {
 	nodeExists, _ := nodeIsKnown(remoteAddr)
 	manageKnownNodes(nodeExists, remoteAddr)
 	
-	counter := len(knownNodes)
-	
 	for _, v := range payload.NodesPacket {
-		if counter < int(knownNodesMax) {
-			nodeExists, _ := nodeIsKnown(v)
-			manageKnownNodes(nodeExists, v)
-			
-			counter = len(knownNodes)
-			
-		} else {
-			break
-		}
+		nodeExists, _ := nodeIsKnown(v)
+		manageKnownNodes(nodeExists, v)
 	}
 }
 

@@ -59,14 +59,12 @@ const(
 	protocol = "tcp"
 	CommandLength uint8 = 14
 	hubsCounter uint8 = 180
-	hubsMax uint8 = 255
-	knownNodesMax uint8 = 255
-	knownNodesPacketMax uint8 = 5
+	hubsMax uint8 = 5
 	txidsPacketMax uint8 = 3
 	
 	protectFromGenesis = "000004c8660c7e4bc9afcc6c0c51ad506ebda759d80fd9d0bd7a9538805b0da2"
-	protectTo = "0000007b6f43a34955517b398a139151b4fae159676a3de07319813bbf40589f"
-	protectHeight uint32 = 33228
+	protectTo = "0000035dcfb9d8761574b003623a4934862c3ec8a59630f8fb36fbe99b8fa569"
+	protectHeight uint32 = 42160
 )
 
 var (
