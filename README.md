@@ -13,3 +13,6 @@ Wakacoin blockchain consensus:
 To sum up, each block can approximately contain up to 5,000 transactions. So that when mint decreased to 1 wakacoin per block, the reward of each block is up to 5,000 wakacoins.  
   
 According to the above consensus, the total amount of Wakacoin issuance is about 20 million. Moreover, about 50,000 wakacoins will be added every year.  
+
+
+![image](https://raw.githubusercontent.com/wakacoin/blockchain/master/ScreenShot.png)
