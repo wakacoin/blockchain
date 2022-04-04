@@ -12,11 +12,11 @@ func (cli *CLI) reindexUTXO(nodeID string) {
 	UTXOSet := UTXOSet{bc}
 	
 	for i := 0; i < 2; i++ {
-		utxoBucket := UTXOSet.GetUnAvailableUTXO()
+		utxoBucket, contractBucket := UTXOSet.GetUnAvailableUTXO()
 		
 		UTXOSet.ResetUTXOLastBlock(utxoBucket)
 		
-		err := UTXOSet.Rebuild(utxoBucket)
+		err := UTXOSet.Rebuild(utxoBucket, contractBucket)
 		CheckErr(err)
 		
 		UTXOSet.SetAvailable(utxoBucket, bc.tip)

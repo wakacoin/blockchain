@@ -63,6 +63,10 @@ func HashPubKey(pubKey []byte) [20]byte {
 }
 
 func ValidateAddress(address string) bool {
+	if len(address) != 34 {
+		return false
+	}
+
 	pubKeyHash := Base58Decode([]byte(address))
 	actualChecksum := pubKeyHash[len(pubKeyHash)-int(addressChecksumLen):]
 	walletVersion := pubKeyHash[0]

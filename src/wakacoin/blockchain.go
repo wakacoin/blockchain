@@ -169,13 +169,15 @@ func (bc *Blockchain) VerifyTransaction(index int, block *Block, blockHashes *[]
 	tnx := block.Transactions[index]
 	thisBlockHeight := block.GetHeight()
 	var totalInput, totalOutput uint
+	var isFound bool
 	
 	for _, vin := range tnx.Vin {
-		isFound := false
+		isFound = false
 		
 		for _, blockHash := range *blockHashes {
 			if vin.Block == blockHash {
 				isFound = true
+				break
 			}
 		}
 		
@@ -183,17 +185,17 @@ func (bc *Blockchain) VerifyTransaction(index int, block *Block, blockHashes *[]
 			return errors.New(errMSG)
 		}
 		
-		var prevBlock *Block
+		var vinBlock *Block
 		
 		err := bc.db.View(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte(blocksBucket))
 			blockData := b.Get(vin.Block[:])
 			
 			if blockData == nil {
-				return errors.New("Block is not found")
+				return errors.New("Transaction verification failed. Block is not found.")
 			}
 			
-			prevBlock = DeserializeBlock(blockData)
+			vinBlock = DeserializeBlock(blockData)
 			
 			return nil
 		})
@@ -201,8 +203,8 @@ func (bc *Blockchain) VerifyTransaction(index int, block *Block, blockHashes *[]
 			return err
 		}
 		
-		prevBlockHeight := prevBlock.GetHeight()
-		heightDifference := thisBlockHeight - prevBlockHeight
+		vinBlockHeight := vinBlock.GetHeight()
+		heightDifference := thisBlockHeight - vinBlockHeight
 		
 		if heightDifference <= uint32(spendableOutputConfirmations) {
 			return errors.New(errMSG)
@@ -227,16 +229,24 @@ func (bc *Blockchain) VerifyTransaction(index int, block *Block, blockHashes *[]
 		
 		isFound = false
 		
-		for _, tx := range prevBlock.Transactions {
+		for _, tx := range vinBlock.Transactions {
 			if tx.ID == vin.Txid {
+				if len(tx.Vout) <= int(vin.Index) {
+					return errors.New(errMSG)
+				}
+
+				if tx.Vout[vin.Index].Value < 1 {
+					return errors.New(errMSG)
+				}
+
 				totalInput += tx.Vout[vin.Index].Value
-				
 				isFound = true
+				break
 			}
 		}
 		
 		if isFound == false {
-			return errors.New("Transaction is not found")
+			return errors.New("Transaction verification failed. Transaction is not found.")
 		}
 	}
 	
@@ -1259,7 +1269,7 @@ func NewBlockchain(nodeID string) *Blockchain {
 	dbFile := fmt.Sprintf(dbFile, nodeID)
 	
 	if dbExists(dbFile) == false {
-		errMSG := "ERROR: No existing database found. Please download the latest version of the database from https://each1.net/public/wakacoin/"
+		errMSG := "ERROR: Require the database file - Wakacoin_1024.db. Please download the database from https://each1.net/public/wakacoin/"
 		
 		fmt.Println("\n", errMSG)
 		os.Exit(1)
@@ -1270,7 +1280,7 @@ func NewBlockchain(nodeID string) *Blockchain {
 	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	CheckErr(err)
 	
-	err = db.Update(func(tx *bolt.Tx) error {
+	err = db.View(func(tx *bolt.Tx) error {
 		parametersB := tx.Bucket([]byte(paramBucket))
 		lastBlock = parametersB.Get([]byte("lastBlock"))
 		

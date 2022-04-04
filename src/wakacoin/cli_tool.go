@@ -12,7 +12,7 @@ func (cli *CLI) tool(nodeID string) {
 	dbFile := fmt.Sprintf(dbFile, nodeID)
 	
 	if dbExists(dbFile) == false {
-		errMSG := "ERROR: No existing database found. Please download the latest version of the database from https://each1.net/public/wakacoin/"
+		errMSG := "ERROR: Require the database file - Wakacoin_1024.db. Please download the latest version of the database from https://each1.net/public/wakacoin/"
 		
 		fmt.Println("\n", errMSG)
 		os.Exit(1)
@@ -20,9 +20,14 @@ func (cli *CLI) tool(nodeID string) {
 	
 	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	CheckErr(err)
+
+	defer db.Close()
 	
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(verifyBucket))
+		_, err := tx.CreateBucketIfNotExists([]byte(contractBucket_A))
+		CheckErr(err)
+
+		_, err = tx.CreateBucketIfNotExists([]byte(contractBucket_B))
 		CheckErr(err)
 	
 		return nil

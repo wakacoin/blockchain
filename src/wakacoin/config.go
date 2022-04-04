@@ -14,6 +14,8 @@ const(
 	verifyBucket = "verifyBucket"
 	utxoBucket_A = "utxoBucket_A"
 	utxoBucket_B = "utxoBucket_B"
+	contractBucket_A = "contractBucket_A"
+	contractBucket_B = "contractBucket_B"
 	hubsBucket = "hubs"
 	txsBucket = "txs"
 	
@@ -63,8 +65,8 @@ const(
 	txidsPacketMax uint8 = 3
 	
 	protectFromGenesis = "000004c8660c7e4bc9afcc6c0c51ad506ebda759d80fd9d0bd7a9538805b0da2"
-	protectTo = "00000050ed5855eaf3944919d258c59b00f95c828fb77fd4329b9149a8acac79"
-	protectHeight uint32 = 54625
+	protectTo = "00000fcc1d759254c32ffdc3f4300e6b7d43afefd5d6d9461d811b90d1c350df"
+	protectHeight uint32 = 99230
 )
 
 var (

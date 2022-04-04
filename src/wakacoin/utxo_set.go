@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 	
 	"github.com/boltdb/bolt"
 )
@@ -99,14 +98,16 @@ func (u UTXOSet) GetAvailableUTXO() (utxoBucket []byte) {
 	return
 }
 
-func (u UTXOSet) GetUnAvailableUTXO() (utxoBucket []byte) {
+func (u UTXOSet) GetUnAvailableUTXO() (utxoBucket, contractBucket []byte) {
 	availableUTXO := u.GetAvailableUTXO()
 	
-	if bytes.Compare(availableUTXO, []byte("utxoBucket_A")) == 0 {
-		utxoBucket = []byte("utxoBucket_B")
+	if bytes.Compare(availableUTXO, []byte(utxoBucket_A)) == 0 {
+		utxoBucket = []byte(utxoBucket_B)
+		contractBucket = []byte(contractBucket_B)
 		
 	} else {
-		utxoBucket = []byte("utxoBucket_A")
+		utxoBucket = []byte(utxoBucket_A)
+		contractBucket = []byte(contractBucket_A)
 	} 
 	
 	return
@@ -168,7 +169,7 @@ func IsInUse(utxoBucket []byte) (isInUse bool) {
 }
 
 func GetUTXOBucketID(utxoBucket []byte) (utxoBucketID string) {
-	if bytes.Compare(utxoBucket, []byte("utxoBucket_A")) == 0 {
+	if bytes.Compare(utxoBucket, []byte(utxoBucket_A)) == 0 {
 		utxoBucketID = "A"
 		
 	} else {
@@ -183,7 +184,7 @@ func (u UTXOSet) UpdateLastBlock() error {
 		return errors.New(utxoCanNotBeUpdated)
 	}
 	
-	utxoBucket := u.GetUnAvailableUTXO()
+	utxoBucket, contractBucket := u.GetUnAvailableUTXO()
 	
 	isInUse := IsInUse(utxoBucket)
 	
@@ -212,14 +213,14 @@ func (u UTXOSet) UpdateLastBlock() error {
 	}()
 	
 	u.ResetUTXOLastBlock(utxoBucket)
-	u.Update(utxoBucket, topBlock)
+	u.Update(utxoBucket, contractBucket, topBlock)
 	u.SetAvailable(utxoBucket, top)
 	
 	return nil
 }
 
 func (u UTXOSet) Reindex() error {
-	utxoBucket := u.GetUnAvailableUTXO()
+	utxoBucket, contractBucket := u.GetUnAvailableUTXO()
 	
 	if isUpdating {
 		return errors.New(utxoCanNotBeUpdated)
@@ -262,7 +263,7 @@ func (u UTXOSet) Reindex() error {
 	length := len(blockHashes)
 	
 	if haveToRebuild {
-		err := u.Rebuild(utxoBucket)
+		err := u.Rebuild(utxoBucket, contractBucket)
 		CheckErr(err)
 		
 	} else {
@@ -270,7 +271,7 @@ func (u UTXOSet) Reindex() error {
 			block, err := u.Blockchain.GetBlock(blockHashes[i])
 			CheckErr(err)
 			
-			u.Update(utxoBucket, block)
+			u.Update(utxoBucket, contractBucket, block)
 		}
 	}
 	
@@ -280,15 +281,24 @@ func (u UTXOSet) Reindex() error {
 	return nil
 }
 
-func (u UTXOSet) Rebuild(utxoBucket []byte) error {
+func (u UTXOSet) Rebuild(utxoBucket, contractBucket []byte) error {
 	err := u.Blockchain.db.Update(func(tx *bolt.Tx) error {
 		err := tx.DeleteBucket(utxoBucket)
 		
 		if err != nil && err != bolt.ErrBucketNotFound {
 			CheckErr(err)
 		}
+
+		err = tx.DeleteBucket(contractBucket)
+		
+		if err != nil && err != bolt.ErrBucketNotFound {
+			CheckErr(err)
+		}
 		
 		_, err = tx.CreateBucket(utxoBucket)
+		CheckErr(err)
+		
+		_, err = tx.CreateBucket(contractBucket)
 		CheckErr(err)
 		
 		return nil
@@ -302,19 +312,20 @@ func (u UTXOSet) Rebuild(utxoBucket []byte) error {
 		block, err := u.Blockchain.GetBlock(blockHashes[i])
 		CheckErr(err)
 		
-		u.Update(utxoBucket, block)
+		u.Update(utxoBucket, contractBucket, block)
 	}
 	
 	return nil
 }
 
-func (u UTXOSet) Update(utxoBucket []byte, block *Block) {
+func (u UTXOSet) Update(utxoBucket, contractBucket []byte, block *Block) {
 	blockHeight := block.GetHeight()
 	blockHash := block.Header.HashBlockHeader()
 	blockHashString := hex.EncodeToString(blockHash[:])
 	
 	err := u.Blockchain.db.Update(func(tx *bolt.Tx) error {
 		utxoB := tx.Bucket(utxoBucket)
+		contractB := tx.Bucket(contractBucket)
 		txsB := tx.Bucket([]byte(txsBucket))
 		
 		for index, tx := range block.Transactions {
@@ -331,6 +342,7 @@ func (u UTXOSet) Update(utxoBucket []byte, block *Block) {
 					for _, out := range outs.Outputs {
 						if out.Index != vin.Index {
 							updatedOuts.Outputs = append(updatedOuts.Outputs, out)
+							break
 						}
 					}
 
@@ -363,12 +375,28 @@ func (u UTXOSet) Update(utxoBucket []byte, block *Block) {
 			newOutputs := UTXOutputs{}
 			
 			for outIdx, out := range tx.Vout {
-				uTXOutput := &UTXOutput{int8(outIdx), out.Value, out.PubKeyHash, blockHeight}
-				newOutputs.Outputs = append(newOutputs.Outputs, uTXOutput)
+				if out.Value > 0 {
+					uTXOutput := &UTXOutput{int8(outIdx), out.Value, out.PubKeyHash, blockHeight}
+					newOutputs.Outputs = append(newOutputs.Outputs, uTXOutput)
+				
+				} else {
+					if index != 0 && outIdx == 0 {
+						a1 := HashPubKey(tx.Vin[0].PubKey)
+						a2 := out.PubKeyHash
+						s1 := a1[:]
+						s2 := a2[:]
+						s1 = append(s1, s2...)
+
+						err := contractB.Put(s1, nil)
+						CheckErr(err)
+					}
+				}
 			}
 			
-			err := utxoB.Put([]byte(utxoID), newOutputs.Serialize())
-			CheckErr(err)
+			if len(newOutputs.Outputs) > 0 {
+				err := utxoB.Put([]byte(utxoID), newOutputs.Serialize())
+				CheckErr(err)
+			}
 		}
 		
 		return nil
@@ -412,20 +440,25 @@ func (u UTXOSet) Balance(pubKeyHash [20]byte) (balance, balanceSpendable uint) {
 }
 
 func (u UTXOSet) FindSpendableOutputs(usableWallets *Wallets, amountAndFee uint) (uint, *ValidOutputs, error) {
-	if amountAndFee < 2 {
-		fmt.Println(time.Now().UTC())
-		panic("ERROR: Amount is not valid.")
+	var accumulated uint
+	var validOutputs ValidOutputs
+
+	if amountAndFee < 1 {
+		return accumulated, &validOutputs, errors.New("ERROR: The amountAndFee is not valid.")
 	}
 	
-	var accumulated, balanceSpendable uint
-	var validOutputs ValidOutputs
+	var balanceSpendable uint
 	var errMSG string
 	var spendedOutputs SpendedOutputs
 	var spendableOutputs SpendableOutputs
 	sliceOutputs := []uint{}
 	
 	topBlock, err := u.Blockchain.GetBlock(u.Blockchain.tip)
-	CheckErr(err)
+	
+	if err != nil {
+		err = errors.New("ERROR: The topBlock is not found when FindSpendableOutputs.")
+		CheckErr(err)
+	}
 	
 	bestHeight := topBlock.GetHeight()
 	
@@ -492,14 +525,25 @@ func (u UTXOSet) FindSpendableOutputs(usableWallets *Wallets, amountAndFee uint)
 							}
 							
 							if !isSpended {
-								if out.Value >= amountAndFee {
-									accumulated = out.Value
-									validOutput := &ValidOutput{block, txID, out.Index, wallet.PublicKey}
-									validOutputs.Outputs = append(validOutputs.Outputs, validOutput)
-									
-									return nil
+								if amountAndFee == 1 {
+									if out.Value == amountAndFee {
+										accumulated = out.Value
+										validOutput := &ValidOutput{block, txID, out.Index, wallet.PublicKey}
+										validOutputs.Outputs = append(validOutputs.Outputs, validOutput)
+										
+										return nil
+									}
+
+								} else {
+									if out.Value >= amountAndFee {
+										accumulated = out.Value
+										validOutput := &ValidOutput{block, txID, out.Index, wallet.PublicKey}
+										validOutputs.Outputs = append(validOutputs.Outputs, validOutput)
+										
+										return nil
+									}
 								}
-								
+
 								balanceSpendable += out.Value
 								
 								spendableOutput := &SpendableOutput{block, txID, out.Index, out.Value, wallet.PublicKey}

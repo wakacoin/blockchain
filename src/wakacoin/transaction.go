@@ -287,12 +287,19 @@ func NewCoinbaseTX(to string, txAmount uint, blockHeight uint32) *Transaction {
 }
 
 func NewUTXOTransaction(from, to string, amount uint, bc *Blockchain) (tx *Transaction, err error) {
-	if amount < 1 {
-		return tx, errors.New("ERROR: Amount is not valid.")
-	}
-	
-	if ValidateAddress(to) != true {
-		return tx, errors.New("ERROR: Recipient’s address is not valid.")
+	var contractChainBlockHash [20]byte 
+
+	if amount == 0 {
+		contractChainBlockHash, err = ContractChainBlockHashDecodeString(to)
+
+		if err != nil {
+			return tx, err
+		}
+
+	} else {
+		if ValidateAddress(to) != true {
+			return tx, errors.New("ERROR: The recipient’s address is not valid.")
+		}
 	}
 	
 	usableWallets := Wallets{}
@@ -306,7 +313,7 @@ func NewUTXOTransaction(from, to string, amount uint, bc *Blockchain) (tx *Trans
 	
 	if len(from) > 0 {
 		if ValidateAddress(from) != true {
-			return tx, errors.New("ERROR: Sender’s address is not valid.")
+			return tx, errors.New("ERROR: The sender’s address is not valid.")
 		}
 		
 		if from == to {
@@ -317,6 +324,10 @@ func NewUTXOTransaction(from, to string, amount uint, bc *Blockchain) (tx *Trans
 		usableWallets.Wallets[from] = wallet
 		
 	} else {
+		if amount == 0 {
+			return tx, errors.New("ERROR: The sender’s address is not valid.")
+		}
+
 		addresses := wallets.GetAddresses()
 		
 		if len(addresses) == 1 {
@@ -351,8 +362,12 @@ func NewUTXOTransaction(from, to string, amount uint, bc *Blockchain) (tx *Trans
 		inputs = append(inputs, input)
 	}
 	
-	outputs = append(outputs, NewTXOutput(amount, []byte(to)))
-	
+	if amount == 0 {
+		outputs = append(outputs, TXOutput{amount, contractChainBlockHash})
+	} else {
+		outputs = append(outputs, NewTXOutput(amount, []byte(to)))
+	}
+
 	if acc > amountAndFee {
 		pubKeyHash := HashPubKey(validOutputs.Outputs[0].PubKey)
 		address := GetAddress(pubKeyHash)
@@ -418,18 +433,12 @@ func VerifyTransactionsWithoutChain(txs []*Transaction) error {
 			return errors.New(errMSG)
 		}
 		
-		if len(tx.Vin) < 1 {
+		if len(tx.Vin) == 0 {
 			return errors.New(errMSG)
 		}
 		
-		if len(tx.Vout) < 1 {
+		if len(tx.Vout) == 0 {
 			return errors.New(errMSG)
-		}
-		
-		for _, out := range tx.Vout {
-			if out.Value < 1 {
-				return errors.New(errMSG)
-			}
 		}
 		
 		if index == 0 {
@@ -538,17 +547,25 @@ func VerifyTransactionWithoutChain(tx *Transaction) (uint32, error) {
 		return txSize, errors.New(errMSG)
 	}
 	
+	if tx.Vout[0].Value < 0 {
+		return txSize, errors.New(errMSG)
+	}
+
 	txVoutLen := len(tx.Vout)
 	
 	switch txVoutLen {
 	case 1:
 		for _, vin := range tx.Vin {
-			if tx.Vout[0].PubKeyHash == HashPubKey(vin.PubKey) {
+			if HashPubKey(vin.PubKey) == tx.Vout[0].PubKeyHash {
 				return txSize, errors.New(errMSG)
 			}
 		}
 		
 	case 2:
+		if tx.Vout[1].Value < 1 {
+			return txSize, errors.New(errMSG)
+		}
+
 		if tx.Vout[0].PubKeyHash == tx.Vout[1].PubKeyHash {
 			return txSize, errors.New(errMSG)
 		}
