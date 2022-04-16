@@ -39,7 +39,7 @@ func (cli *CLI) statistic(nodeID string) {
 	
 	bci := bc.Iterator()
 	var emptyArray [32]byte
-	var totalMint uint
+	var totalMint uint32
 	
 	for {
 		block := bci.Next()

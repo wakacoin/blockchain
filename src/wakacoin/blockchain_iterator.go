@@ -1,6 +1,8 @@
 package wakacoin
 
 import (
+	"errors"
+	
 	"github.com/boltdb/bolt"
 )
 
@@ -15,22 +17,23 @@ type BlockchainIteratorTwo struct {
 	db          *bolt.DB
 }
 
-func (i *BlockchainIterator) Next() *Block {
-	var block *Block
-	
+func (i *BlockchainIterator) Next() (block *Block) {
 	err := i.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(blocksBucket))
 		encodedBlock := b.Get(i.currentHash[:])
+		
+		if encodedBlock == nil {
+			return errors.New("ERROR: The block does not exist.")
+		}
+
 		block = DeserializeBlock(encodedBlock)
 
 		return nil
 	})
-	
 	CheckErr(err)
 	
 	i.currentHash = block.Header.PrevBlock
-	
-	return block
+	return
 }
 
 func (i *BlockchainIteratorTwo) NextIfBlockExists() (findNonExistingBlock, findIllegalBlock bool, blockHash [32]byte, height uint32) {

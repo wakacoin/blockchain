@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func (cli *CLI) startNode(nodeID, minerAddress, from, to string, sendNewTx bool, amount uint) {
+func (cli *CLI) startNode(nodeID, minerAddress, from, to string, sendNewTx bool, amount uint32) {
 	fmt.Printf("Starting node %s\n", nodeID)
 	
 	if len(minerAddress) > 0 {

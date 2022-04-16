@@ -8,6 +8,7 @@ const(
 	blockChain = "W"
 	
 	dbFile = "Wakacoin_%s.db"
+	contractDbFile = "ContractChain_%s.db"
 	
 	paramBucket = "parameters"
 	blocksBucket = "blocks"
@@ -30,7 +31,7 @@ const(
 	maxVins uint16 = 1001
 	maxTxAmount uint16 = 5000
 	
-	genesisSubsidy uint = 5000
+	genesisSubsidy uint32 = 5000
 	halving uint32 = 2160
 	maxHalvingRound uint32 = 13
 	
@@ -67,6 +68,8 @@ const(
 	protectFromGenesis = "000004c8660c7e4bc9afcc6c0c51ad506ebda759d80fd9d0bd7a9538805b0da2"
 	protectTo = "00000fcc1d759254c32ffdc3f4300e6b7d43afefd5d6d9461d811b90d1c350df"
 	protectHeight uint32 = 99230
+
+	contractVersion uint32 = 0
 )
 
 var (
@@ -95,7 +98,7 @@ var (
 	b58Alphabet = []byte("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
 )
 
-func Subsidy(blockHeight uint32) uint {
+func Subsidy(blockHeight uint32) uint32 {
 	switch {
 	case blockHeight < halving:
 		return genesisSubsidy
@@ -110,7 +113,7 @@ func Subsidy(blockHeight uint32) uint {
 		for i := 0; i < xInt; i++ {
 			s = s / 2
 		}
-		return uint(math.Ceil(s))
+		return uint32(math.Ceil(s))
 		
 	default:
 		return 1

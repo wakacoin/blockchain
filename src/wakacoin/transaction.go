@@ -162,7 +162,8 @@ func (tx *Transaction) Sign(wallets *Wallets, bc *Blockchain) {
 		pubKeyHash, err := bc.FindTXOutputPubKeyHash(vin.Block, vin.Txid, vin.Index)
 		CheckErr(err)
 		
-		privKey := GetPrivateKey(pubKeyHash, wallets)
+		privKey, err := GetPrivateKey(pubKeyHash, wallets)
+		CheckErr(err)
 		
 		txCopy.Vin[inID].PubKey = pubKeyHash[:]
 		dataToSign := sha256.Sum256(txCopy.MarshalJSON())
@@ -277,7 +278,7 @@ func NewCoinbaseTX(to string, txAmount uint, blockHeight uint32) *Transaction {
 	outputs = append(outputs, NewTXOutput(Subsidy(blockHeight), []byte(to)))
 	
 	if txAmount > 0 {
-		outputs = append(outputs, NewTXOutput(txAmount, []byte(to)))
+		outputs = append(outputs, NewTXOutput(uint32(txAmount), []byte(to)))
 	}
 	
 	tx := &Transaction{[32]byte{}, transactionVersion, inputs, outputs}
@@ -286,7 +287,7 @@ func NewCoinbaseTX(to string, txAmount uint, blockHeight uint32) *Transaction {
 	return tx
 }
 
-func NewUTXOTransaction(from, to string, amount uint, bc *Blockchain) (tx *Transaction, err error) {
+func NewUTXOTransaction(from, to string, amount uint32, bc *Blockchain) (tx *Transaction, err error) {
 	var contractChainBlockHash [20]byte 
 
 	if amount == 0 {
@@ -319,8 +320,13 @@ func NewUTXOTransaction(from, to string, amount uint, bc *Blockchain) (tx *Trans
 		if from == to {
 			return tx, errors.New("ERROR: The sender’s address and the recipient’s address cannot be the same.")
 		}
-		
-		wallet := wallets.GetWallet(from)
+
+		wallet, err := wallets.GetWallet(from)
+
+		if err != nil {
+			return tx, err
+		}
+
 		usableWallets.Wallets[from] = wallet
 		
 	} else {
@@ -338,7 +344,12 @@ func NewUTXOTransaction(from, to string, amount uint, bc *Blockchain) (tx *Trans
 		
 		for _, address := range addresses {
 			if address != to {
-				wallet := wallets.GetWallet(address)
+				wallet, err := wallets.GetWallet(address)
+				
+				if err != nil {
+					return tx, err
+				}
+
 				usableWallets.Wallets[address] = wallet
 			}
 		}
@@ -499,7 +510,7 @@ func VerifyCoinbaseWithoutChain(coinbase *Transaction, txAmount int) error {
 			return errors.New(errMSG)
 		}
 		
-		if uint(txAmount - 1) != coinbase.Vout[1].Value {
+		if uint32(txAmount - 1) != coinbase.Vout[1].Value {
 			return errors.New(errMSG)
 		}
 		

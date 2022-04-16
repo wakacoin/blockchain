@@ -71,7 +71,7 @@ type trx struct {
 	Transaction []byte
 }
 
-func StartServer(nodeID, minerAddress, from, to string, sendNewTx bool, amount uint) {
+func StartServer(nodeID, minerAddress, from, to string, sendNewTx bool, amount uint32) {
 	addrHost, _, err := net.SplitHostPort(DefaultHub)
 	CheckErr(err)
 	

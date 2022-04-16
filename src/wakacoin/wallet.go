@@ -26,11 +26,11 @@ func GetAddress(pubKeyHash [20]byte) []byte {
 	return address
 }
 
-func GetPrivateKey(pubKeyHash [20]byte, wallets *Wallets) ecdsa.PrivateKey {
+func GetPrivateKey(pubKeyHash [20]byte, wallets *Wallets) (ecdsa.PrivateKey, error) {
 	address := fmt.Sprintf("%s", GetAddress(pubKeyHash))
-	wallet := wallets.GetWallet(address)
+	wallet, err := wallets.GetWallet(address)
 	
-	return wallet.PrivateKey
+	return wallet.PrivateKey, err
 }
 
 func NewWallet() *Wallet {

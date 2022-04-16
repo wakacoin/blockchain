@@ -5,8 +5,16 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/rand"
+	"os"
 	"time"
 )
+
+func CliCheckErr(err error) {
+	if err != nil {
+		fmt.Println("\n", err)
+		os.Exit(1)
+	}
+}
 
 func CheckErr(err error) {
 	if err != nil {
@@ -87,6 +95,12 @@ func ReverseBytes(data []byte) {
 }
 
 func ReverseHashes(data [][32]byte) {
+	for i, j := 0, len(data)-1; i < j; i, j = i+1, j-1 {
+		data[i], data[j] = data[j], data[i]
+	}
+}
+
+func Reverse20ByteHashes(data [][20]byte) {
 	for i, j := 0, len(data)-1; i < j; i, j = i+1, j-1 {
 		data[i], data[j] = data[j], data[i]
 	}

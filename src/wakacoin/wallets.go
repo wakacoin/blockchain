@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/elliptic"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -42,18 +43,30 @@ func (ws *Wallets) GetAddresses() []string {
 	return addresses
 }
 
-func (ws *Wallets) GetWallet(address string) *Wallet {
-	return ws.Wallets[address]
+func (ws *Wallets) GetWallet(address string) (wallet *Wallet, err error) {
+	addresses := ws.GetAddresses()
+
+	for _, addr := range addresses {
+		if addr == address {
+			return ws.Wallets[address], nil
+		}
+	}
+
+	return wallet, errors.New("ERROR: You do not have the private key of the address.")
 }
 
 func (ws *Wallets) LoadFromFile(nodeID string) error {
-	walletFile := fmt.Sprintf(walletFile, nodeID)
+	walletFileName := fmt.Sprintf(walletFile, nodeID)
 	
-	if _, err := os.Stat(walletFile); os.IsNotExist(err) {
-		return err
+	if _, err := os.Stat(walletFileName); err != nil {
+		if os.IsNotExist(err) {
+			return errors.New("ERROR: The wallet file does not exist.")
+		} else {
+			return errors.New("ERROR: There is an error when reading the wallet file.")
+		}
 	}
 
-	fileContent, err := ioutil.ReadFile(walletFile)
+	fileContent, err := ioutil.ReadFile(walletFileName)
 	CheckErr(err)
 
 	var wallets Wallets
@@ -69,7 +82,7 @@ func (ws *Wallets) LoadFromFile(nodeID string) error {
 
 func (ws Wallets) SaveToFile(nodeID string) {
 	var content bytes.Buffer
-	walletFile := fmt.Sprintf(walletFile, nodeID)
+	walletFileName := fmt.Sprintf(walletFile, nodeID)
 
 	gob.Register(elliptic.P256())
 
@@ -77,6 +90,6 @@ func (ws Wallets) SaveToFile(nodeID string) {
 	err := encoder.Encode(ws)
 	CheckErr(err)
 
-	err = ioutil.WriteFile(walletFile, content.Bytes(), 0644)
+	err = ioutil.WriteFile(walletFileName, content.Bytes(), 0644)
 	CheckErr(err)
 }

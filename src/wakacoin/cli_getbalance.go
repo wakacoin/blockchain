@@ -6,8 +6,15 @@ import (
 )
 
 func (cli *CLI) getBalance(address, nodeID string) {
+	balance, balanceSpendable := GetBalance(address, nodeID)
+
+	fmt.Printf("Balance of '%s': %d\n", address, balance)
+	fmt.Printf("Spendable Balance of '%s': %d\n", address, balanceSpendable)
+}
+
+func GetBalance(address, nodeID string) (balance, balanceSpendable uint32) {
 	if ValidateAddress(address) != true {
-		errMSG := "ERROR: Address is not valid"
+		errMSG := "ERROR: The address is not valid."
 		
 		fmt.Println("\n", errMSG)
 		os.Exit(1)
@@ -23,8 +30,7 @@ func (cli *CLI) getBalance(address, nodeID string) {
 	
 	var array [20]byte
 	copy(array[:], pubKeyHash)
-	balance, balanceSpendable := UTXOSet.Balance(array)
+	balance, balanceSpendable = UTXOSet.Balance(array)
 
-	fmt.Printf("Balance of '%s': %d\n", address, balance)
-	fmt.Printf("Spendable Balance of '%s': %d\n", address, balanceSpendable)
+	return balance, balanceSpendable
 }

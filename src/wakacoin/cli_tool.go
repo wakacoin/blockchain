@@ -12,7 +12,7 @@ func (cli *CLI) tool(nodeID string) {
 	dbFile := fmt.Sprintf(dbFile, nodeID)
 	
 	if dbExists(dbFile) == false {
-		errMSG := "ERROR: Require the database file - Wakacoin_1024.db. Please download the latest version of the database from https://each1.net/public/wakacoin/"
+		errMSG := "ERROR: Require the database file - " + dbFile + ". Please download the database from https://each1.net/public/wakacoin/"
 		
 		fmt.Println("\n", errMSG)
 		os.Exit(1)

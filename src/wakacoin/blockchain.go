@@ -13,8 +13,8 @@ import (
 )
 
 type Blockchain struct {
-	tip    [32]byte
-	db     *bolt.DB
+	tip [32]byte
+	db  *bolt.DB
 }
 
 func (bc *Blockchain) Iterator() *BlockchainIterator {
@@ -168,7 +168,7 @@ func (bc *Blockchain) VerifyTransaction(index int, block *Block, blockHashes *[]
 	
 	tnx := block.Transactions[index]
 	thisBlockHeight := block.GetHeight()
-	var totalInput, totalOutput uint
+	var totalInput, totalOutput uint32
 	var isFound bool
 	
 	for _, vin := range tnx.Vin {
@@ -1258,7 +1258,7 @@ func (bc *Blockchain) VerifyProtect() error {
 }
 
 func dbExists(dbFile string) bool {
-	if _, err := os.Stat(dbFile); os.IsNotExist(err) {
+	if _, err := os.Stat(dbFile); err != nil {
 		return false
 	}
 
@@ -1269,7 +1269,7 @@ func NewBlockchain(nodeID string) *Blockchain {
 	dbFile := fmt.Sprintf(dbFile, nodeID)
 	
 	if dbExists(dbFile) == false {
-		errMSG := "ERROR: Require the database file - Wakacoin_1024.db. Please download the database from https://each1.net/public/wakacoin/"
+		errMSG := "ERROR: Require the database file - " + dbFile + ". Please download the database from https://each1.net/public/wakacoin/"
 		
 		fmt.Println("\n", errMSG)
 		os.Exit(1)
@@ -1298,7 +1298,5 @@ func NewBlockchain(nodeID string) *Blockchain {
 	var tip [32]byte
 	copy(tip[:], lastBlock)
 	
-	bc := Blockchain{tip, db}
-	
-	return &bc
+	return &Blockchain{tip, db}
 }

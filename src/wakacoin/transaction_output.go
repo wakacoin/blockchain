@@ -6,11 +6,11 @@ import (
 )
 
 type TXOutput struct {
-	Value      uint
+	Value      uint32
 	PubKeyHash [20]byte
 }
 
-func NewTXOutput(value uint, address []byte) TXOutput {
+func NewTXOutput(value uint32, address []byte) TXOutput {
 	txo := TXOutput{value, [20]byte{}}
 	txo.Lock(address)
 
@@ -28,7 +28,7 @@ func (out *TXOutput) Lock(address []byte) {
 
 type UTXOutput struct {
 	Index      int8
-	Value      uint
+	Value      uint32
 	PubKeyHash [20]byte
 	Height     uint32
 }

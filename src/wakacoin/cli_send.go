@@ -5,7 +5,7 @@ import (
 )
 
 func (cli *CLI) send(from, to string, amount uint, nodeID string) {
-	if amount < 1 {
+	if amount < 1 || amount > 12345678 {
 		str := "ERROR: Amount is not valid."
 		PrintMessage(str)
 		os.Exit(1)
@@ -37,5 +37,5 @@ func (cli *CLI) send(from, to string, amount uint, nodeID string) {
 	var minerAddress string
 	sendNewTx := true
 	
-	StartServer(nodeID, minerAddress, from, to, sendNewTx, amount)
+	StartServer(nodeID, minerAddress, from, to, sendNewTx, uint32(amount))
 }

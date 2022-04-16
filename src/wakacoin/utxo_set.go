@@ -2,13 +2,11 @@ package wakacoin
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
 	"sort"
 	"strconv"
-	"strings"
 	
 	"github.com/boltdb/bolt"
 )
@@ -42,7 +40,7 @@ type SpendableOutput struct {
 	Block  [32]byte
 	Txid   [32]byte
 	Index  int8
-	Value  uint
+	Value  uint32
 	PubKey []byte
 }
 
@@ -81,7 +79,7 @@ func (u UTXOSet) SetAvailable(utxoBucket []byte, utxoLastBlockHash [32]byte) {
 	PrintMessage("Reindex UTXO completed")
 }
 
-func (u UTXOSet) GetAvailableUTXO() (utxoBucket []byte) {
+func (u UTXOSet) GetAvailableUTXO() (utxoBucket, contractBucket []byte) {
 	err := u.Blockchain.db.View(func(tx *bolt.Tx) error {
 		parametersB := tx.Bucket([]byte(paramBucket))
 		
@@ -90,6 +88,12 @@ func (u UTXOSet) GetAvailableUTXO() (utxoBucket []byte) {
 		if utxoBucket == nil {
 			return errors.New("Error: The available UTXO is not found")
 		}
+
+		if bytes.Compare(utxoBucket, []byte(utxoBucket_A)) == 0 {
+			contractBucket = []byte(contractBucket_A)
+		} else {
+			contractBucket = []byte(contractBucket_B)
+		} 
 		
 		return nil
 	})
@@ -99,7 +103,7 @@ func (u UTXOSet) GetAvailableUTXO() (utxoBucket []byte) {
 }
 
 func (u UTXOSet) GetUnAvailableUTXO() (utxoBucket, contractBucket []byte) {
-	availableUTXO := u.GetAvailableUTXO()
+	availableUTXO, _ := u.GetAvailableUTXO()
 	
 	if bytes.Compare(availableUTXO, []byte(utxoBucket_A)) == 0 {
 		utxoBucket = []byte(utxoBucket_B)
@@ -321,7 +325,6 @@ func (u UTXOSet) Rebuild(utxoBucket, contractBucket []byte) error {
 func (u UTXOSet) Update(utxoBucket, contractBucket []byte, block *Block) {
 	blockHeight := block.GetHeight()
 	blockHash := block.Header.HashBlockHeader()
-	blockHashString := hex.EncodeToString(blockHash[:])
 	
 	err := u.Blockchain.db.Update(func(tx *bolt.Tx) error {
 		utxoB := tx.Bucket(utxoBucket)
@@ -329,14 +332,14 @@ func (u UTXOSet) Update(utxoBucket, contractBucket []byte, block *Block) {
 		txsB := tx.Bucket([]byte(txsBucket))
 		
 		for index, tx := range block.Transactions {
-			utxoID := hex.EncodeToString(tx.ID[:]) + "@" + blockHashString
+			utxoID :=  append(blockHash[:], tx.ID[:]...)
 			
 			if index != 0 {
 				for _, vin := range tx.Vin {
-					inTxoID := hex.EncodeToString(vin.Txid[:]) + "@" + hex.EncodeToString(vin.Block[:])
+					inTxoID := append(vin.Block[:], vin.Txid[:]...)
 					
 					updatedOuts := UTXOutputs{}
-					outsBytes := utxoB.Get([]byte(inTxoID))
+					outsBytes := utxoB.Get(inTxoID)
 					outs := DeserializeUTXOutputs(outsBytes)
 
 					for _, out := range outs.Outputs {
@@ -347,11 +350,11 @@ func (u UTXOSet) Update(utxoBucket, contractBucket []byte, block *Block) {
 					}
 
 					if len(updatedOuts.Outputs) == 0 {
-						err := utxoB.Delete([]byte(inTxoID))
+						err := utxoB.Delete(inTxoID)
 						CheckErr(err)
 						
 					} else {
-						err := utxoB.Put([]byte(inTxoID), updatedOuts.Serialize())
+						err := utxoB.Put(inTxoID, updatedOuts.Serialize())
 						CheckErr(err)
 					}
 					
@@ -394,7 +397,7 @@ func (u UTXOSet) Update(utxoBucket, contractBucket []byte, block *Block) {
 			}
 			
 			if len(newOutputs.Outputs) > 0 {
-				err := utxoB.Put([]byte(utxoID), newOutputs.Serialize())
+				err := utxoB.Put(utxoID, newOutputs.Serialize())
 				CheckErr(err)
 			}
 		}
@@ -404,8 +407,8 @@ func (u UTXOSet) Update(utxoBucket, contractBucket []byte, block *Block) {
 	CheckErr(err)
 }
 
-func (u UTXOSet) Balance(pubKeyHash [20]byte) (balance, balanceSpendable uint) {
-	utxoBucket := u.GetAvailableUTXO()
+func (u UTXOSet) Balance(pubKeyHash [20]byte) (balance, balanceSpendable uint32) {
+	utxoBucket, _ := u.GetAvailableUTXO()
 	
 	topBlock, err := u.Blockchain.GetBlock(u.Blockchain.tip)
 	CheckErr(err)
@@ -439,19 +442,19 @@ func (u UTXOSet) Balance(pubKeyHash [20]byte) (balance, balanceSpendable uint) {
 	return
 }
 
-func (u UTXOSet) FindSpendableOutputs(usableWallets *Wallets, amountAndFee uint) (uint, *ValidOutputs, error) {
-	var accumulated uint
+func (u UTXOSet) FindSpendableOutputs(usableWallets *Wallets, amountAndFee uint32) (uint32, *ValidOutputs, error) {
+	var accumulated uint32
 	var validOutputs ValidOutputs
 
 	if amountAndFee < 1 {
 		return accumulated, &validOutputs, errors.New("ERROR: The amountAndFee is not valid.")
 	}
 	
-	var balanceSpendable uint
+	var balanceSpendable uint32
 	var errMSG string
 	var spendedOutputs SpendedOutputs
 	var spendableOutputs SpendableOutputs
-	sliceOutputs := []uint{}
+	sliceOutputs := []uint32{}
 	
 	topBlock, err := u.Blockchain.GetBlock(u.Blockchain.tip)
 	
@@ -462,7 +465,7 @@ func (u UTXOSet) FindSpendableOutputs(usableWallets *Wallets, amountAndFee uint)
 	
 	bestHeight := topBlock.GetHeight()
 	
-	utxoBucket := u.GetAvailableUTXO()
+	utxoBucket, _ := u.GetAvailableUTXO()
 	
 	inUseID := AddInUse(utxoBucket)
 	
@@ -491,24 +494,13 @@ func (u UTXOSet) FindSpendableOutputs(usableWallets *Wallets, amountAndFee uint)
 		c = b.Cursor()
 		
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			utxoID := string(k)
 			outs := DeserializeUTXOutputs(v)
 			
-			ID := strings.Split(utxoID, "@")
-			
-			var txID [32]byte
-			
-			decoded, err := hex.DecodeString(ID[0])
-			CheckErr(err)
-			
-			copy(txID[:], decoded)
-			
 			var block [32]byte
-			
-			decoded, err = hex.DecodeString(ID[1])
-			CheckErr(err)
-			
-			copy(block[:], decoded)
+			copy(block[:], k[:32])
+
+			var txID [32]byte
+			copy(txID[:], k[32:])
 			
 			for _, out := range outs.Outputs {
 				if (bestHeight - out.Height) > uint32(spendableOutputConfirmations) {
@@ -572,7 +564,8 @@ func (u UTXOSet) FindSpendableOutputs(usableWallets *Wallets, amountAndFee uint)
 			return sliceOutputs[i] < sliceOutputs[j]
 		})
 		
-		var outsValue, outValue, counter uint
+		var outsValue, outValue uint32
+		var counter uint
 		
 		for _, v := range sliceOutputs {
 			if outsValue < amountAndFee {
@@ -701,7 +694,7 @@ func (u UTXOSet) isSpendableTX(tnx *Transaction) (bool, error) {
 	
 	bestHeight := topBlock.GetHeight()
 	
-	utxoBucket := u.GetAvailableUTXO()
+	utxoBucket, _ := u.GetAvailableUTXO()
 	
 	inUseID := AddInUse(utxoBucket)
 	
@@ -713,8 +706,8 @@ func (u UTXOSet) isSpendableTX(tnx *Transaction) (bool, error) {
 		b := tx.Bucket(utxoBucket)
 		
 		for _, vin := range tnx.Vin {
-			inTxoID := hex.EncodeToString(vin.Txid[:]) + "@" + hex.EncodeToString(vin.Block[:])
-			outsBytes := b.Get([]byte(inTxoID))
+			inTxoID := append(vin.Block[:], vin.Txid[:]...)
+			outsBytes := b.Get(inTxoID)
 			
 			if outsBytes == nil {
 				return errors.New("Error: Unspent transaction output is not found")
