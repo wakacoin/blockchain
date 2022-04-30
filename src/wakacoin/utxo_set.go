@@ -407,7 +407,9 @@ func (u UTXOSet) Update(utxoBucket, contractBucket []byte, block *Block) {
 	CheckErr(err)
 }
 
-func (u UTXOSet) Balance(pubKeyHash [20]byte) (balance, balanceSpendable uint32) {
+func (u UTXOSet) Balance(pubKeyHash [20]byte, printDetail bool) (balance, balanceSpendable uint32) {
+	var values []uint32
+
 	utxoBucket, _ := u.GetAvailableUTXO()
 	
 	topBlock, err := u.Blockchain.GetBlock(u.Blockchain.tip)
@@ -424,6 +426,10 @@ func (u UTXOSet) Balance(pubKeyHash [20]byte) (balance, balanceSpendable uint32)
 
 			for _, out := range outs.Outputs {
 				if out.PubKeyHash == pubKeyHash {
+					if printDetail {
+						values = append(values, out.Value)
+					}
+
 					balance += out.Value
 					
 					if bestHeight > out.Height {
@@ -439,6 +445,16 @@ func (u UTXOSet) Balance(pubKeyHash [20]byte) (balance, balanceSpendable uint32)
 	})
 	CheckErr(err)
 	
+	if printDetail {
+		sort.Slice(values, func(i, j int) bool {
+			return values[i] < values[j]
+		})
+
+		for _, v := range values {
+			fmt.Println(v)
+		}
+	}
+
 	return
 }
 
@@ -517,23 +533,12 @@ func (u UTXOSet) FindSpendableOutputs(usableWallets *Wallets, amountAndFee uint3
 							}
 							
 							if !isSpended {
-								if amountAndFee == 1 {
-									if out.Value == amountAndFee {
-										accumulated = out.Value
-										validOutput := &ValidOutput{block, txID, out.Index, wallet.PublicKey}
-										validOutputs.Outputs = append(validOutputs.Outputs, validOutput)
-										
-										return nil
-									}
-
-								} else {
-									if out.Value >= amountAndFee {
-										accumulated = out.Value
-										validOutput := &ValidOutput{block, txID, out.Index, wallet.PublicKey}
-										validOutputs.Outputs = append(validOutputs.Outputs, validOutput)
-										
-										return nil
-									}
+								if out.Value == amountAndFee {
+									accumulated = out.Value
+									validOutput := &ValidOutput{block, txID, out.Index, wallet.PublicKey}
+									validOutputs.Outputs = append(validOutputs.Outputs, validOutput)
+									
+									return nil
 								}
 
 								balanceSpendable += out.Value
@@ -559,113 +564,64 @@ func (u UTXOSet) FindSpendableOutputs(usableWallets *Wallets, amountAndFee uint3
 			
 			return nil
 		}
-		
-		sort.Slice(sliceOutputs, func(i, j int) bool {
-			return sliceOutputs[i] < sliceOutputs[j]
-		})
-		
-		var outsValue, outValue uint32
-		var counter uint
-		
-		for _, v := range sliceOutputs {
-			if outsValue < amountAndFee {
-				outsValue += v
-				outValue = v
-				
+
+		var numbers uint16 = 30
+
+		if numbers > maxVins - 1 {
+			numbers = maxVins - 1
+		}
+
+		accumulated = 0
+
+		for i, out := range spendableOutputs.Outputs {
+			if i < int(numbers) {
+				accumulated += out.Value
+
 			} else {
 				break
 			}
-			
-			counter++
-			
-			if counter >= uint(maxVins) {
-				break
-			}
 		}
-		
-		if outsValue >= amountAndFee {
+
+		if accumulated >= amountAndFee {
+			accumulated = 0
+
 			for _, out := range spendableOutputs.Outputs {
 				if accumulated < amountAndFee {
-					if out.Value < outValue {
-						accumulated += out.Value
-						validOutput := &ValidOutput{out.Block, out.Txid, out.Index, out.PubKey}
-						validOutputs.Outputs = append(validOutputs.Outputs, validOutput)
-					}
-					
+					accumulated += out.Value
+					validOutput := &ValidOutput{out.Block, out.Txid, out.Index, out.PubKey}
+					validOutputs.Outputs = append(validOutputs.Outputs, validOutput)
+
 				} else {
 					return nil
 				}
 			}
-			
-			for _, out := range spendableOutputs.Outputs {
-				if accumulated < amountAndFee {
-					if out.Value == outValue {
-						accumulated += out.Value
-						validOutput := &ValidOutput{out.Block, out.Txid, out.Index, out.PubKey}
-						validOutputs.Outputs = append(validOutputs.Outputs, validOutput)
-					}
-					
-				} else {
-					return nil
-				}
-			}
-			
+
 		} else {
-			outsValue = 0
-			outValue = 0
+			sort.Slice(spendableOutputs.Outputs, func(i, j int) bool {
+				return spendableOutputs.Outputs[i].Value > spendableOutputs.Outputs[j].Value
+			})
+
+			accumulated = 0
+
+			for i, out := range spendableOutputs.Outputs {
+				if i >= int(maxVins) {
+					amount := int(amountAndFee - 1)
 			
-			sliceOutputsLength := len(sliceOutputs)
-			
-			for i := (sliceOutputsLength - 1); i >= (sliceOutputsLength - int(maxVins)); i-- {
-				if i < 0 {
-					break
-				}
-				
-				if outsValue < amountAndFee {
-					outsValue += sliceOutputs[i]
-					outValue = sliceOutputs[i]
+					errMSG = "ERROR: The maximum number of inputs is " + strconv.Itoa(int(maxVins)) + " per transaction. It’s unable to collect " + strconv.Itoa(amount) + " wakacoins from your wallet within " + strconv.Itoa(int(maxVins)) + " inputs. Please transfer " + strconv.Itoa(amount) + " wakacoins in several batches."
 					
-				} else {
-					break
-				}
-			}
-			
-		}
-		
-		if outsValue < amountAndFee {
-			amount := int(amountAndFee - 1)
-			
-			errMSG = "ERROR: The maximum number of inputs is " + strconv.Itoa(int(maxVins)) + " per transaction. It’s unable to collect " + strconv.Itoa(amount) + " wakacoins from your wallet within " + strconv.Itoa(int(maxVins)) + " inputs. Please transfer " + strconv.Itoa(amount) + " wakacoins in two or more batches."
-			
-			if !miningPool {
-				fmt.Println("\n", errMSG)
-				os.Exit(1)
-			}
-			
-			return nil
-			
-		} else {
-			for _, out := range spendableOutputs.Outputs {
-				if accumulated < amountAndFee {
-					if out.Value > outValue {
-						accumulated += out.Value
-						validOutput := &ValidOutput{out.Block, out.Txid, out.Index, out.PubKey}
-						validOutputs.Outputs = append(validOutputs.Outputs, validOutput)
+					if !miningPool {
+						fmt.Println("\n", errMSG)
+						os.Exit(1)
 					}
 					
-				} else {
 					return nil
 				}
-			}
-			
-			for _, out := range spendableOutputs.Outputs {
+
 				if accumulated < amountAndFee {
-					if out.Value == outValue {
-						accumulated += out.Value
-						validOutput := &ValidOutput{out.Block, out.Txid, out.Index, out.PubKey}
-						validOutputs.Outputs = append(validOutputs.Outputs, validOutput)
-					}
-					
+					accumulated += out.Value
+					validOutput := &ValidOutput{out.Block, out.Txid, out.Index, out.PubKey}
+					validOutputs.Outputs = append(validOutputs.Outputs, validOutput)
+
 				} else {
 					return nil
 				}
@@ -710,7 +666,7 @@ func (u UTXOSet) isSpendableTX(tnx *Transaction) (bool, error) {
 			outsBytes := b.Get(inTxoID)
 			
 			if outsBytes == nil {
-				return errors.New("Error: Unspent transaction output is not found")
+				return errors.New("outsBytes nil. Unspent transaction output is not found. The transaction may have already been written into the blockchain. The transaction will be discarded.")
 			}
 			
 			outs := DeserializeUTXOutputs(outsBytes)
@@ -722,15 +678,15 @@ func (u UTXOSet) isSpendableTX(tnx *Transaction) (bool, error) {
 					outputExists = true
 					
 					if (bestHeight - out.Height) > uint32(spendableOutputConfirmations) {
-						confirmationsEnough = true
-						
-						break							
+						confirmationsEnough = true							
 					}
+
+					break
 				}
 			}
 			
 			if outputExists != true {
-				return errors.New("Error: Unspent transaction output is not found")
+				return errors.New("outputExists false. Unspent transaction output is not found. The transaction may have already been written into the blockchain. The transaction will be discarded.")
 			}
 			
 			if confirmationsEnough != true {

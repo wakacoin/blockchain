@@ -18,16 +18,9 @@ func CliCheckErr(err error) {
 
 func CheckErr(err error) {
 	if err != nil {
-		t := time.Now().UTC()
-		timeNow := t.Format("02 Jan 15:04:05")
-		fmt.Println(timeNow)
-		
-		// msg := blockChain + " blockchain, panic."
-		
+		PrintErr(err)
 		msg := fmt.Sprintf("%s blockchain, panic: %s", blockChain, err)
-		
 		SendAdminEmail(msg)
-		
 		panic(err)
 	}
 }

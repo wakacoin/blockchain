@@ -5,14 +5,14 @@ import (
 	"os"
 )
 
-func (cli *CLI) getBalance(address, nodeID string) {
-	balance, balanceSpendable := GetBalance(address, nodeID)
+func (cli *CLI) getBalance(address, nodeID string, printDetail bool) {
+	balance, balanceSpendable := GetBalance(address, nodeID, printDetail)
 
 	fmt.Printf("Balance of '%s': %d\n", address, balance)
 	fmt.Printf("Spendable Balance of '%s': %d\n", address, balanceSpendable)
 }
 
-func GetBalance(address, nodeID string) (balance, balanceSpendable uint32) {
+func GetBalance(address, nodeID string, printDetail bool) (balance, balanceSpendable uint32) {
 	if ValidateAddress(address) != true {
 		errMSG := "ERROR: The address is not valid."
 		
@@ -30,7 +30,7 @@ func GetBalance(address, nodeID string) (balance, balanceSpendable uint32) {
 	
 	var array [20]byte
 	copy(array[:], pubKeyHash)
-	balance, balanceSpendable = UTXOSet.Balance(array)
+	balance, balanceSpendable = UTXOSet.Balance(array, printDetail)
 
 	return balance, balanceSpendable
 }

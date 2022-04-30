@@ -66,8 +66,8 @@ const(
 	txidsPacketMax uint8 = 3
 	
 	protectFromGenesis = "000004c8660c7e4bc9afcc6c0c51ad506ebda759d80fd9d0bd7a9538805b0da2"
-	protectTo = "00000fcc1d759254c32ffdc3f4300e6b7d43afefd5d6d9461d811b90d1c350df"
-	protectHeight uint32 = 99230
+	protectTo = "00000e39f51c2f8eb88fe99b719278f734bd25af0874708f1845b085d53d0fc4"
+	protectHeight uint32 = 103608
 
 	contractVersion uint32 = 0
 )

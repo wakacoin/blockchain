@@ -18,7 +18,7 @@ func (cli *CLI) printUsage() {
 	// fmt.Println("  createblockchain -address ADDRESS - Create a blockchain and send genesis block reward to ADDRESS")
 	fmt.Println("  createwallet - Generates a new key-pair and saves it into the wallet file")
 	fmt.Println("  datacleansing - Delete data that is completely useless")
-	fmt.Println("  getbalance -address ADDRESS - Get balance of ADDRESS")
+	fmt.Println("  getbalance -address ADDRESS -detail BOOL - Get balance of ADDRESS. -detail print details (false/true)")
 	fmt.Println("  listaddresses - List all addresses from the wallet file")
 	fmt.Println("  printchain -page PAGE - Print all the blocks of the blockchain by PAGE")
 	fmt.Println("  printransaction -blockid BLOCKID -txid TXID - Print the transaction of the block")
@@ -80,6 +80,7 @@ func (cli *CLI) Run() {
 	contractReleaseFileHeight := contractReleaseFileCmd.Uint("height", 0, "Height of block")
 	// createBlockchainAddress := createBlockchainCmd.String("address", "", "The address to send genesis block reward to")
 	getBalanceAddress := getBalanceCmd.String("address", "", "The address to get balance for")
+	getBalanceDetail := getBalanceCmd.Bool("detail", false, "whether to print out the details")
 	printchainPage := printChainCmd.Uint("page", 0, "Number of page")
 	printransactionBlockid := prinTransactionCmd.String("blockid", "", "Block header hash")
 	printransactionTxid := prinTransactionCmd.String("txid", "", "Transaction ID")
@@ -245,7 +246,7 @@ func (cli *CLI) Run() {
 			os.Exit(1)
 		}
 		
-		cli.getBalance(*getBalanceAddress, nodeID)
+		cli.getBalance(*getBalanceAddress, nodeID, *getBalanceDetail)
 	}
 	
 	if listAddressesCmd.Parsed() {

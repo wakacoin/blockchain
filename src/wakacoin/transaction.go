@@ -336,12 +336,6 @@ func NewUTXOTransaction(from, to string, amount uint32, bc *Blockchain) (tx *Tra
 
 		addresses := wallets.GetAddresses()
 		
-		if len(addresses) == 1 {
-			if addresses[0] == to {
-				return tx, errors.New("ERROR: The sender’s address and the recipient’s address cannot be the same.")
-			}
-		}
-		
 		for _, address := range addresses {
 			if address != to {
 				wallet, err := wallets.GetWallet(address)

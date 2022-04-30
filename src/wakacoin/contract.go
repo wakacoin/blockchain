@@ -68,7 +68,7 @@ func (cli *CLI) contractChainCreate(address, filename, nodeID string) {
 	wallet, err := wallets.GetWallet(address)
 	CliCheckErr(err)
 
-	if _, balanceSpendable := GetBalance(address, nodeID); balanceSpendable < 1 {
+	if _, balanceSpendable := GetBalance(address, nodeID, false); balanceSpendable < 1 {
 		fmt.Println("\n", "ERROR: Since the address has zero spendable wakacoin, you cannot pay the transaction fee.")
 		os.Exit(1)
 	}
@@ -307,7 +307,7 @@ func (cli *CLI) contractCreate(address, filename, nodeID string) {
 	wallet, err := wallets.GetWallet(address)
 	CliCheckErr(err)
 
-	if _, balanceSpendable := GetBalance(address, nodeID); balanceSpendable < 1 {
+	if _, balanceSpendable := GetBalance(address, nodeID, false); balanceSpendable < 1 {
 		fmt.Println("\n", "ERROR: Since the address has zero spendable wakacoin, you cannot pay the transaction fee.")
 		os.Exit(1)
 	}
