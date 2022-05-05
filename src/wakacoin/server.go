@@ -1529,11 +1529,11 @@ func wrappedTXs(bc *Blockchain) []*Transaction {
 			CheckErr(err)
 		}
 		
-		if quota < 200 {
+		if quota < 1000 {
 			return txs
 		}
 		
-		if len(txs) >= int(maxTxAmount - 1) {
+		if len(txs) == int(maxTxAmount - 1) {
 			return txs
 		}
 	}
