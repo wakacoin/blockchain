@@ -2,6 +2,7 @@ package wakacoin
 
 import (
 	"math"
+	"sync"
 )
 
 const(
@@ -23,7 +24,7 @@ const(
 	walletFile = "wallet_%s.dat"
 	
 	blockVersion uint32 = 0
-	maxBlockSize uint32 = 5242880   //5 MB
+	maxBlockSize uint32 = 5242880    //5 MB
 	stretch float32 = 1.01
 	maxBlockHeaderPayload uint8 = 85
 	coinbaseReservedSize uint16 = 700
@@ -66,8 +67,8 @@ const(
 	txidsPacketMax uint8 = 3
 	
 	protectFromGenesis = "000004c8660c7e4bc9afcc6c0c51ad506ebda759d80fd9d0bd7a9538805b0da2"
-	protectTo = "00000e39f51c2f8eb88fe99b719278f734bd25af0874708f1845b085d53d0fc4"
-	protectHeight uint32 = 103608
+	protectTo = "0000076c43822ab0eea15f65f0fd0d8251615e1ef13a12fa7c53fa8284d148a6"
+	protectHeight uint32 = 112690
 
 	contractVersion uint32 = 0
 )
@@ -81,8 +82,8 @@ var (
 	isUpdating bool
 	inUse []string
 	
-	knownNodes = make(map[string]uint8)
-	blacklist = make(map[string]int64)
+	knownNodes sync.Map    // map[string]uint8
+	blacklist sync.Map    // map[string]int64
 	nodeId string
 	nodeAddress string
 	hostStaticAddress string
@@ -119,3 +120,4 @@ func Subsidy(blockHeight uint32) uint32 {
 		return 1
 	}
 }
+

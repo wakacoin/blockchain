@@ -247,32 +247,9 @@ func StartServer(nodeID, minerAddress, from, to string, sendNewTx bool, amount u
 	
 	time.Sleep(15 * time.Second)
 	
-	nodesPacket := []string{}
-	nodesPacketMax := 8
-	knownNodesLength := len(knownNodes)
+	nodesPacket := packNodesPacket(5)
 	
-	if knownNodesLength < nodesPacketMax + 1 {
-		for node, _ := range knownNodes {
-			nodesPacket = append(nodesPacket, node)
-		}
-		
-	} else {
-		randomNumbers := generateRandomNumber(0, knownNodesLength - 1, nodesPacketMax)
-		
-		index := 0
-		
-		for node, _ := range knownNodes {
-			for _, num := range randomNumbers {
-				if index == num {
-					nodesPacket = append(nodesPacket, node)
-				}
-			}
-			
-			index ++
-		}
-	}
-	
-	for _, node := range nodesPacket {
+	for _, node := range *nodesPacket {
 		send := true
 		
 		switch {
@@ -312,29 +289,32 @@ func StartServer(nodeID, minerAddress, from, to string, sendNewTx bool, amount u
 				break
 			}
 			
-			for k, _ := range knownNodes {
+			knownNodes.Range(func(k, v interface{}) bool {
 				send := true
+				node := k.(string)
 				
 				switch {
-				case k == nodeAddress:
+				case node == nodeAddress:
 					send = false
 					
-				case k == DefaultHub:
+				case node == DefaultHub:
 					if DefaultHubIsIP == false {
 						send = false
 					}
 					
-				case SetLocalhostDomainName && k == hostDomainName:
+				case SetLocalhostDomainName && node == hostDomainName:
 					send = false
 					
-				case SetLocalhostStaticIPAddr && k == hostStaticAddress:
+				case SetLocalhostStaticIPAddr && node == hostStaticAddress:
 					send = false
 				}
 				
 				if send {
-					sendGetBestHeight(k, bc.db, false)
+					sendGetBestHeight(node, bc.db, false)
 				}
-			}
+				
+				return true
+			})
 			
 			time.Sleep(5 * time.Minute)
 			
@@ -422,30 +402,33 @@ func StartServer(nodeID, minerAddress, from, to string, sendNewTx bool, amount u
 		if err == nil {
 			PrintMessage("The transaction was successfully submitted.")
 			txSerialize := tx.Serialize()
-			
-			for k, _ := range knownNodes {
+
+			knownNodes.Range(func(k, v interface{}) bool {
 				send := true
+				node := k.(string)
 				
 				switch {
-				case k == nodeAddress:
+				case node == nodeAddress:
 					send = false
 					
-				case k == DefaultHub:
+				case node == DefaultHub:
 					if DefaultHubIsIP == false {
 						send = false
 					}
 					
-				case SetLocalhostDomainName && k == hostDomainName:
+				case SetLocalhostDomainName && node == hostDomainName:
 					send = false
 					
-				case SetLocalhostStaticIPAddr && k == hostStaticAddress:
+				case SetLocalhostStaticIPAddr && node == hostStaticAddress:
 					send = false
 				}
 				
 				if send {
-					sendTx(k, txSerialize, bc.db, true)
+					sendTx(node, txSerialize, bc.db, true)
 				}
-			}
+				
+				return true
+			})
 			
 			time.Sleep(1 * time.Minute)
 			os.Exit(1)
@@ -971,32 +954,9 @@ func handleTx(remoteAddrHost string, request []byte, bc *Blockchain) {
 			})
 			CheckErr(err)
 			
-			nodesPacket := []string{}
-			nodesPacketMax := 5
-			knownNodesLength := len(knownNodes)
+			nodesPacket := packNodesPacket(5)
 			
-			if knownNodesLength < nodesPacketMax + 1 {
-				for node, _ := range knownNodes {
-					nodesPacket = append(nodesPacket, node)
-				}
-				
-			} else {
-				randomNumbers := generateRandomNumber(0, knownNodesLength - 1, nodesPacketMax)
-				
-				index := 0
-				
-				for node, _ := range knownNodes {
-					for _, num := range randomNumbers {
-						if index == num {
-							nodesPacket = append(nodesPacket, node)
-						}
-					}
-					
-					index ++
-				}
-			}
-			
-			for _, node := range nodesPacket {
+			for _, node := range *nodesPacket {
 				send := true
 				
 				switch {
@@ -1133,33 +1093,31 @@ func ExcludeNode(addr string, db *bolt.DB) {
 	})
 	CheckErr(err)
 	
-	delete(knownNodes, addr)
+	knownNodes.Delete(addr)
 }
 
 func PutOnBlacklist(addr string) {
-	blacklist[addr] = time.Now().UTC().Unix()
+	blacklist.Store(addr, time.Now().UTC().Unix())
 }
 
-func NodeIsOnBlacklist(addr string) bool {
+func NodeIsOnBlacklist(addr string) (nodeIsOnBlacklist bool) {
 	timeSet := time.Now().UTC().Add(-24 * time.Hour).Unix()
 	
-	for node, time := range blacklist {
-		if node == addr {
-			if time > timeSet {
-				return true
-				
-			} else {
-				delete(blacklist, addr)
-				return false
+	blacklist.Range(func(k, v interface{}) bool {
+		
+		if v.(int64) > timeSet {
+			if k.(string) == addr {
+				nodeIsOnBlacklist = true
 			}
+
+		} else {
+			blacklist.Delete(k.(string))
 		}
 		
-		if time <= timeSet {
-			delete(blacklist, node)
-		}
-	}
+		return true
+	})
 
-	return false
+	return
 }
 
 func ValidateAddrHost(addr string) error {
@@ -1227,14 +1185,17 @@ func RemoteAddr(version uint32, isStaticAddr bool, staticHost, port, remoteAddrH
 	return remoteAddr, nil
 }
 
-func nodeIsKnown(addr string) (bool, uint8) {
-	for node, counter := range knownNodes {
-		if node == addr {
-			return true, uint8(counter)
+func nodeIsKnown(addr string) (isKnown bool, counter uint8) {
+	knownNodes.Range(func(k, v interface{}) bool {
+		if k.(string) == addr {
+			isKnown = true
+			counter = v.(uint8)
 		}
-	}
+		
+		return true
+	})
 
-	return false, 0
+	return
 }
 
 func manageKnownNodes(nodeExists bool, addr string) {
@@ -1244,8 +1205,9 @@ func manageKnownNodes(nodeExists bool, addr string) {
 		
 		err = ValidateAddrHost(addrHost)
 		CheckErr(err)
-		
-		knownNodes[addr] = 1
+
+		var counter uint8 = 1
+		knownNodes.Store(addr, counter)
 	}
 }
 
@@ -1284,32 +1246,9 @@ func SendTXIDs(db *bolt.DB) {
 	}
 	
 	if len(txidsPacket) > 0 {
-		nodesPacket := []string{}
-		nodesPacketMax := 5
-		knownNodesLength := len(knownNodes)
+		nodesPacket := packNodesPacket(5)
 		
-		if knownNodesLength < nodesPacketMax + 1 {
-			for node, _ := range knownNodes {
-				nodesPacket = append(nodesPacket, node)
-			}
-			
-		} else {
-			randomNumbers := generateRandomNumber(0, knownNodesLength - 1, nodesPacketMax)
-			
-			index := 0
-			
-			for node, _ := range knownNodes {
-				for _, num := range randomNumbers {
-					if index == num {
-						nodesPacket = append(nodesPacket, node)
-					}
-				}
-				
-				index ++
-			}
-		}
-		
-		for _, node := range nodesPacket {
+		for _, node := range *nodesPacket {
 			str := "knownNode: " + node
 			PrintMessage(str)
 			
@@ -1397,32 +1336,9 @@ func StartMine(bc *Blockchain, batch uint32, maxNonce uint64, sleep uint8) {
 		}
 	}
 	
-	nodesPacket := []string{}
-	nodesPacketMax := 8
-	knownNodesLength := len(knownNodes)
+	nodesPacket := packNodesPacket(5)
 	
-	if knownNodesLength < nodesPacketMax + 1 {
-		for node, _ := range knownNodes {
-			nodesPacket = append(nodesPacket, node)
-		}
-		
-	} else {
-		randomNumbers := generateRandomNumber(0, knownNodesLength - 1, nodesPacketMax)
-		
-		index := 0
-		
-		for node, _ := range knownNodes {
-			for _, num := range randomNumbers {
-				if index == num {
-					nodesPacket = append(nodesPacket, node)
-				}
-			}
-			
-			index ++
-		}
-	}
-	
-	for _, node := range nodesPacket {
+	for _, node := range *nodesPacket {
 		str := "knownNode: " + node
 		PrintMessage(str)
 		

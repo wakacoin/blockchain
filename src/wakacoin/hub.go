@@ -3,7 +3,9 @@ package wakacoin
 import (
 	"bytes"
 	"encoding/gob"
+	"math/rand"
 	"net"
+	"time"
 	
 	"github.com/boltdb/bolt"
 )
@@ -248,7 +250,7 @@ func handleGetKnownNodes(remoteAddrHost string, request []byte, db *bolt.DB) {
 		if counter < hubsCounter {
 			if counter < 255 {
 				counter++
-				knownNodes[remoteAddr] = counter
+				knownNodes.Store(remoteAddr, counter)
 			}
 			
 		} else {
@@ -328,40 +330,23 @@ func handleGetKnownNodes(remoteAddrHost string, request []byte, db *bolt.DB) {
 		}
 	}
 	
-	nodesPacket := []string{}
-	nodesPacketMax := 10
-	knownNodesLength := len(knownNodes)
-	
-	if knownNodesLength < nodesPacketMax + 3 {
-		for node, _ := range knownNodes {
-			if node != remoteAddr {
-				nodesPacket = append(nodesPacket, node)
-			}
-		}
-		
-	} else {
-		randomNumbers := generateRandomNumber(0, knownNodesLength - 1, nodesPacketMax)
-		
-		index := 0
-		
-		for node, _ := range knownNodes {
-			for _, num := range randomNumbers {
-				if index == num {
-					if node != remoteAddr {
-						nodesPacket = append(nodesPacket, node)
-					}
-				}
-			}
-			
-			index ++
+	nodesPacket := packNodesPacket(10)
+
+	if len(*nodesPacket) == 0 {
+		*nodesPacket = append(*nodesPacket, DefaultHub)
+	}
+
+	nodesPacketRemoveRemoteAddr := []string{}
+
+	for _, node := range *nodesPacket {
+		if node != remoteAddr {
+			nodesPacketRemoveRemoteAddr = append(nodesPacketRemoveRemoteAddr, node)
 		}
 	}
 	
-	if len(nodesPacket) == 0 {
-		nodesPacket = append(nodesPacket, DefaultHub)
+	if len(nodesPacketRemoveRemoteAddr) > 0 {
+		sendKnownNodesPacket(remoteAddr, db, &nodesPacketRemoveRemoteAddr, false)
 	}
-	
-	sendKnownNodesPacket(remoteAddr, db, &nodesPacket, false)
 }
 
 func handleKnownNodesPacket(remoteAddrHost string, request []byte) {
@@ -414,4 +399,49 @@ func sendKnownNodesPacket(addr string, db *bolt.DB, nodesPacket *[]string, repor
 	payload := gobEncode(data)
 	request := append(commandToBytes("knownodepacket"), payload...)
 	sendData(addr, &request, db, report)
+}
+
+func packNodesPacket(nodesPacketMax uint8) *[]string {
+	nodesPacket := []string{}
+	var counter uint8 = 0
+	
+	if nodesPacketMax < 1 {
+		nodesPacketMax = 1
+	}
+
+	knownNodes.Range(func(k, v interface{}) bool {
+		rand.Seed(time.Now().UnixNano())
+
+		if counter < nodesPacketMax {
+			if rand.Intn(30) % 2 == 1 {
+				nodesPacket = append(nodesPacket, k.(string))
+			}
+		}
+
+		if counter < 255 {
+			counter++
+		}
+		
+		return true
+	})
+
+	if len(nodesPacket) == 0 {
+		if counter > 0 {
+			counter = 0
+
+			knownNodes.Range(func(k, v interface{}) bool {
+				if counter < nodesPacketMax {
+					nodesPacket = append(nodesPacket, k.(string))
+				}
+
+				if counter < 255 {
+					counter++
+				}
+				
+				return true
+			})
+		}
+	}
+
+	return &nodesPacket
 }
