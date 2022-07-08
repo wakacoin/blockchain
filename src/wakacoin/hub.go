@@ -3,9 +3,7 @@ package wakacoin
 import (
 	"bytes"
 	"encoding/gob"
-	"math/rand"
 	"net"
-	"time"
 	
 	"github.com/boltdb/bolt"
 )
@@ -410,11 +408,13 @@ func packNodesPacket(nodesPacketMax uint8) *[]string {
 	}
 
 	knownNodes.Range(func(k, v interface{}) bool {
-		rand.Seed(time.Now().UnixNano())
+		node := k.(string)
 
 		if counter < nodesPacketMax {
-			if rand.Intn(30) % 2 == 1 {
-				nodesPacket = append(nodesPacket, k.(string))
+			if node == DefaultHub && DefaultHubIsIP == false {
+
+			} else {
+				nodesPacket = append(nodesPacket, node)
 			}
 		}
 
@@ -424,24 +424,6 @@ func packNodesPacket(nodesPacketMax uint8) *[]string {
 		
 		return true
 	})
-
-	if len(nodesPacket) == 0 {
-		if counter > 0 {
-			counter = 0
-
-			knownNodes.Range(func(k, v interface{}) bool {
-				if counter < nodesPacketMax {
-					nodesPacket = append(nodesPacket, k.(string))
-				}
-
-				if counter < 255 {
-					counter++
-				}
-				
-				return true
-			})
-		}
-	}
 
 	return &nodesPacket
 }
