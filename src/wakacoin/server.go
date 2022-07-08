@@ -85,6 +85,9 @@ func StartServer(nodeID, minerAddress, from, to string, sendNewTx bool, amount u
 	
 	blockHashesFromGenesisToTip = *bc.GetBlockHashes()
 	ReverseHashes(blockHashesFromGenesisToTip)
+	fmt.Printf("Genesis Block is %x \n", blockHashesFromGenesisToTip[0])
+	fmt.Printf("protectTo Block is %x \n", blockHashesFromGenesisToTip[protectHeight])
+	fmt.Printf("Top Block is %x \n", blockHashesFromGenesisToTip[(len(blockHashesFromGenesisToTip)-1)])
 	
 	hostStaticAddress = LocalhostStaticIPAddr + ":" + nodeID
 	hostDomainName = LocalhostDomainName + ":" + nodeID
