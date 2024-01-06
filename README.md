@@ -2,6 +2,8 @@
 A fully decentralized blockchain.  
 The open source code was released on September 27, 2020.  
   
+Wakacoin open source code has been maintained by https://each1.net/. Please download the latest version from the following website: https://each1.net/wakacoin  
+  
 Wakacoin blockchain consensus:  
 1. It uses Proof-of-Work (PoW).  
 2. The maximum capacity of each block is 5 MB, containing up to 5,000 transactions.  
